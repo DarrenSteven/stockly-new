@@ -10,14 +10,16 @@ import java.sql.SQLException;
 public class AddProductFrame extends JFrame {
     private JTextField idField;
     private JTextField nameField;
-    private JTextField purchasePriceField;  // New field for Harga Beli
+    private JTextField purchasePriceField;
     private JTextField sellingPriceField;
     private JTextField quantityField;
     private JTextField unitField;
+    private StockPage stockPage;  // Reference to StockPage
 
-    public AddProductFrame() {
+    public AddProductFrame(StockPage stockPage) {
+        this.stockPage = stockPage;  // Initialize StockPage reference
         setTitle("Tambahkan Produk yang Akan Dijual");
-        setSize(400, 330);  // Increased size to accommodate new field
+        setSize(400, 330);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLocationRelativeTo(null);
 
@@ -34,7 +36,7 @@ public class AddProductFrame extends JFrame {
         JPanel inputPanel = new JPanel();
         inputPanel.setLayout(new GridLayout(6, 2, 5, 5));  // Adjusted layout to include new field
 
-        JLabel idLabel = new JLabel("ID:");
+        JLabel idLabel = new JLabel("Kode:");
         inputPanel.add(idLabel);
         idField = new JTextField(15);
         idField.setPreferredSize(new Dimension(200, 25));
@@ -100,7 +102,7 @@ public class AddProductFrame extends JFrame {
     private void addProductToDatabase() {
         String id = idField.getText();
         String name = nameField.getText();
-        String purchasePrice = purchasePriceField.getText();  // Get value from Harga Beli field
+        String purchasePrice = purchasePriceField.getText();
         String sellingPrice = sellingPriceField.getText();
         String quantity = quantityField.getText();
         String unit = unitField.getText();
@@ -114,12 +116,13 @@ public class AddProductFrame extends JFrame {
             pstmt.setString(2, name);
             pstmt.setInt(3, Integer.parseInt(quantity));
             pstmt.setString(4, unit);
-            pstmt.setDouble(5, Double.parseDouble(purchasePrice));  // Set Harga Beli value
-            pstmt.setDouble(6, Double.parseDouble(sellingPrice));  // Set Harga Jual value
+            pstmt.setDouble(5, Double.parseDouble(purchasePrice));
+            pstmt.setDouble(6, Double.parseDouble(sellingPrice));
 
             int rowsAffected = pstmt.executeUpdate();
             if (rowsAffected > 0) {
                 JOptionPane.showMessageDialog(this, "Produk berhasil ditambahkan!");
+                stockPage.refreshTable();  // Notify StockPage to refresh the table
                 dispose();
             } else {
                 JOptionPane.showMessageDialog(this, "Gagal menambahkan produk.");
@@ -130,13 +133,5 @@ public class AddProductFrame extends JFrame {
         } catch (NumberFormatException ex) {
             JOptionPane.showMessageDialog(this, "Format data tidak valid: " + ex.getMessage());
         }
-    }
-
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
-                new AddProductFrame();
-            }
-        });
     }
 }

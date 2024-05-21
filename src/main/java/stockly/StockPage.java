@@ -1,12 +1,16 @@
 package stockly;
 
 import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
-import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
+import javax.swing.table.DefaultTableModel;
 import javax.swing.border.EmptyBorder;
+import java.awt.*;
+import java.awt.event.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.Vector;
 
 class PlaceholderTextField extends JTextField {
     private String placeholder;
@@ -31,52 +35,51 @@ class PlaceholderTextField extends JTextField {
 }
 
 public class StockPage extends JFrame {
+    private DefaultTableModel tableModel;
+    private JTable table;
+
     public StockPage() {
         setTitle("Stockly - Stock Barang");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(1300,850); 
-        setLocationRelativeTo(null); 
+        setSize(1300, 850);
+        setLocationRelativeTo(null);
 
         JPanel mainPanel = new JPanel(new BorderLayout());
-        mainPanel.setBorder(new EmptyBorder(10, 10, 10, 10)); 
+        mainPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
 
         Sidebar sidebar = new Sidebar();
         mainPanel.add(sidebar, BorderLayout.WEST);
 
         JPanel contentPanel = new JPanel(new BorderLayout());
-        contentPanel.setBorder(new EmptyBorder(10, 10, 10, 10)); 
+        contentPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
 
         JLabel titleLabel = new JLabel("List Produk");
         titleLabel.setFont(new Font("Arial", Font.BOLD, 20));
 
         PlaceholderTextField searchBar = new PlaceholderTextField("Search...");
         searchBar.setFont(new Font("Arial", Font.PLAIN, 14));
-        searchBar.setPreferredSize(new Dimension(searchBar.getPreferredSize().width, 40)); 
+        searchBar.setPreferredSize(new Dimension(searchBar.getPreferredSize().width, 40));
         searchBar.setBorder(BorderFactory.createCompoundBorder(
-            searchBar.getBorder(),
-            BorderFactory.createEmptyBorder(5, 5, 5, 5))); 
+                searchBar.getBorder(),
+                BorderFactory.createEmptyBorder(5, 5, 5, 5)));
 
         JPanel titleSearchPanel = new JPanel(new BorderLayout());
         titleSearchPanel.add(titleLabel, BorderLayout.NORTH);
         titleSearchPanel.add(searchBar, BorderLayout.SOUTH);
         contentPanel.add(titleSearchPanel, BorderLayout.NORTH);
 
-        String[] columnNames = {"ID", "Nama Barang", "Jumlah", "Satuan", "Harga Pembelian", "Harga Penjualan", "Aksi"};
-        Object[][] data = {
-            {"P001", "Chocolatos", "10", "box", "Rp10.000", "Rp15.000", ""},
-            {"P002", "Tango", "15", "box", "Rp20.000", "Rp25.000", ""},
-            {"P003", "Momogi", "20", "box", "Rp5.000", "Rp7.000", ""}
-        };
-        DefaultTableModel model = new DefaultTableModel(data, columnNames) {
+        String[] columnNames = {"Kode", "Nama Barang", "Jumlah", "Satuan", "Harga Pembelian", "Harga Penjualan", "Aksi"};
+        tableModel = new DefaultTableModel(columnNames, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
             }
         };
-        JTable table = new JTable(model) {
+
+        table = new JTable(tableModel) {
             @Override
             public int getRowHeight(int row) {
-                return 40; 
+                return 40;
             }
         };
 
@@ -89,7 +92,7 @@ public class StockPage extends JFrame {
         table.getColumnModel().getColumn(1).setCellRenderer(leftRenderer);
 
         table.getColumnModel().getColumn(6).setCellRenderer((table1, value, isSelected, hasFocus, row, column) -> {
-            JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 5)); 
+            JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 5));
             JButton editButton = new JButton("Edit");
             JButton deleteButton = new JButton("Hapus");
             panel.add(editButton);
@@ -104,7 +107,7 @@ public class StockPage extends JFrame {
         addButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                new AddProductFrame();
+                new AddProductFrame(StockPage.this);  // Pass reference of StockPage
             }
         });
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
@@ -115,10 +118,44 @@ public class StockPage extends JFrame {
 
         add(mainPanel);
 
+        loadDataFromDatabase();
+
         setVisible(true);
     }
 
+    public void refreshTable() {
+        tableModel.setRowCount(0);  // Clear existing data
+        loadDataFromDatabase();     // Load new data
+    }
+
+    private void loadDataFromDatabase() {
+        try (Connection conn = Dbconnect.getConnect();
+             PreparedStatement pstmt = conn.prepareStatement("SELECT kode, nama, stock, satuan, harga_beli, harga_jual FROM list_produk");
+             ResultSet rs = pstmt.executeQuery()) {
+
+            while (rs.next()) {
+                Vector<Object> row = new Vector<>();
+                row.add(rs.getString("kode"));
+                row.add(rs.getString("nama"));
+                row.add(rs.getInt("stock"));
+                row.add(rs.getString("satuan"));
+                row.add(rs.getDouble("harga_beli"));
+                row.add(rs.getDouble("harga_jual"));
+                row.add(""); // Placeholder for "Aksi" column
+
+                tableModel.addRow(row);
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Terjadi kesalahan pada database: " + ex.getMessage());
+        }
+    }
+
     public static void main(String[] args) {
-        new StockPage();
+        SwingUtilities.invokeLater(new Runnable() {
+            public void run() {
+                new StockPage();
+            }
+        });
     }
 }
