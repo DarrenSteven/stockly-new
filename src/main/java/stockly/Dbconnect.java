@@ -1,9 +1,12 @@
 package stockly;
-import java.sql.*;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 
 public class Dbconnect {
-
     private static final String HOST = "localhost";
     private static final int PORT = 3306;
     private static final String DB_NAME = "stockly";
@@ -17,9 +20,20 @@ public class Dbconnect {
                     String.format("jdbc:mysql://%s:%d/%s", HOST, PORT, DB_NAME),
                     USERNAME, PASSWORD);
         } catch (SQLException e) {
-            // Handle the exception (e.g., log or display an error message)
             e.printStackTrace();
         }
         return connection;
+    }
+
+    public static ResultSet getData(String query) {
+        ResultSet resultSet = null;
+        try {
+            Connection connection = getConnect();
+            Statement statement = connection.createStatement();
+            resultSet = statement.executeQuery(query);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return resultSet;
     }
 }
