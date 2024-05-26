@@ -5,15 +5,13 @@ import javax.swing.border.*;
 import javax.swing.table.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
 public class AddPurchaseFrame extends JFrame {
     private JTable table;
-    private JComboBox<String> itemComboBox;
-    private JTextField qtyField;
-    private JTextField priceField;
 
     public AddPurchaseFrame() {
         setTitle("Tambah Pembelian");
@@ -45,11 +43,11 @@ public class AddPurchaseFrame extends JFrame {
         inputPanel.add(titlePanel, BorderLayout.NORTH);
 
         // Panel untuk section 1 dan section 2
-        JPanel sectionsPanel = new JPanel(new GridLayout(2, 1, 0, 20));
-        sectionsPanel.setBorder(new CompoundBorder(new LineBorder(Color.BLACK), new EmptyBorder(10, 10, 10, 10)));
+        JPanel sectionsPanel = new JPanel(new GridLayout(2, 1, 0, 20)); 
+        sectionsPanel.setBorder(new CompoundBorder(new LineBorder(Color.BLACK), new EmptyBorder(10, 10, 10, 10))); 
 
         // Section 1: Tanggal, ID Transaksi, dan Supplier
-        JPanel dateIdSupplierPanel = new JPanel(new GridLayout(3, 2, 5, 5));
+        JPanel dateIdSupplierPanel = new JPanel(new GridLayout(3, 2, 5, 5)); 
 
         JLabel dateLabel = new JLabel("Tanggal:");
         JTextField dateField = new JTextField(15);
@@ -71,12 +69,12 @@ public class AddPurchaseFrame extends JFrame {
         JPanel itemPanel = new JPanel(new GridLayout(3, 2, 5, 5));
 
         JLabel itemLabel = new JLabel("Cari Barang:");
-        itemComboBox = new JComboBox<>(getProductNames().toArray(new String[0]));
+        JComboBox<String> itemComboBox = new JComboBox<>(getProductNames().toArray(new String[0]));
         JLabel qtyLabel = new JLabel("Jumlah:");
-        qtyField = new JTextField(5);
+        JTextField qtyField = new JTextField(5);
         JLabel priceLabel = new JLabel("Harga:");
-        priceField = new JTextField(5);
-        priceField.setEnabled(false);
+        JTextField priceField = new JTextField(5); 
+        priceField.setEnabled(false); 
         itemPanel.add(itemLabel);
         itemPanel.add(itemComboBox);
         itemPanel.add(qtyLabel);
@@ -87,18 +85,17 @@ public class AddPurchaseFrame extends JFrame {
 
         inputPanel.add(sectionsPanel, BorderLayout.CENTER);
 
-        // Tombol Tambah
-        JButton tambahButton = new JButton("Tambah");
-        tambahButton.addActionListener(this::tambahButtonActionPerformed);
-
+        // Panel untuk tombol Tambah
         JPanel buttonPanel = new JPanel(new BorderLayout());
-        buttonPanel.add(tambahButton, BorderLayout.EAST);
+        JButton tambahButton = new JButton("Tambah");
+        buttonPanel.add(tambahButton, BorderLayout.EAST); 
+
         inputPanel.add(buttonPanel, BorderLayout.SOUTH);
 
         contentPanel.add(inputPanel, BorderLayout.NORTH);
 
         // Tabel untuk menampilkan data
-        String[] columnNames = {"Nama Barang", "Harga", "Jumlah", "Total Harga"};
+        String[] columnNames = {"Kode", "Nama Barang", "Harga", "Jumlah", "Total Harga"};
         DefaultTableModel model = new DefaultTableModel(null, columnNames);
         table = new JTable(model) {
             @Override
@@ -113,7 +110,7 @@ public class AddPurchaseFrame extends JFrame {
                 return component;
             }
         };
-        table.setRowHeight(30);
+        table.setRowHeight(30); 
         JScrollPane scrollPane = new JScrollPane(table);
         contentPanel.add(scrollPane, BorderLayout.CENTER);
 
@@ -122,14 +119,14 @@ public class AddPurchaseFrame extends JFrame {
 
         JPanel subtotalPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JLabel subtotalLabel = new JLabel("Subtotal:");
-        JTextField subtotalTextField = new JTextField("Rp0", 10);
-        subtotalTextField.setEditable(false);
+        JTextField subtotalTextField = new JTextField("Rp720.000", 10); 
+        subtotalTextField.setEditable(false); 
         JLabel diskonLabel = new JLabel("Diskon:");
-        JTextField diskonTextField = new JTextField("Rp0", 10);
-        diskonTextField.setEditable(false);
+        JTextField diskonTextField = new JTextField("Rp0", 10); 
+        diskonTextField.setEditable(false); 
         JLabel totalLabel = new JLabel("Total:");
-        JTextField totalTextField = new JTextField("Rp0", 10);
-        totalTextField.setEditable(false);
+        JTextField totalTextField = new JTextField("Rp720.000", 10); 
+        totalTextField.setEditable(false); 
         subtotalPanel.add(subtotalLabel);
         subtotalPanel.add(subtotalTextField);
         subtotalPanel.add(diskonLabel);
@@ -157,6 +154,15 @@ public class AddPurchaseFrame extends JFrame {
         add(mainPanel);
         setVisible(true);
 
+        // Listener untuk tombol Simpan
+        simpanButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                savePurchase(dateField.getText(), idField.getText(), (String) supplierComboBox.getSelectedItem());
+            }
+        });
+
+        // Load data dari database ke tabel
         loadTableData();
     }
 
@@ -190,82 +196,65 @@ public class AddPurchaseFrame extends JFrame {
         return productNames;
     }
 
-    private int getProductPrice(String productName) {
-        int hargaBeli = 0;
-        String query = "SELECT harga_beli FROM list_produk WHERE nama = ?";
-        try (Connection conn = Dbconnect.getConnect();
-             PreparedStatement stmt = conn.prepareStatement(query)) {
-            stmt.setString(1, productName);
-            ResultSet resultSet = stmt.executeQuery();
-            if (resultSet.next()) {
-                hargaBeli = resultSet.getInt("harga_beli");
+    private void savePurchase(String date, String kodeTransaksi, String supplierName) {
+        int supplierId = getSupplierIdByName(supplierName);
+        if (supplierId == -1) {
+            JOptionPane.showMessageDialog(this, "Supplier tidak valid!", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        String query = "INSERT INTO pembelian (tanggal, kode, id_pemasok) VALUES (?, ?, ?)";
+        try (Connection connection = Dbconnect.getConnect();
+             PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+            preparedStatement.setString(1, date);
+            preparedStatement.setString(2, kodeTransaksi);
+            preparedStatement.setInt(3, supplierId);
+            int rowsAffected = preparedStatement.executeUpdate();
+            if (rowsAffected > 0) {
+                JOptionPane.showMessageDialog(this, "Data pembelian berhasil disimpan.", "Success", JOptionPane.INFORMATION_MESSAGE);
+                // Refresh table data after successful insertion if needed
+                // loadTableData();
+            } else {
+                JOptionPane.showMessageDialog(this, "Gagal menyimpan data pembelian.", "Error", JOptionPane.ERROR_MESSAGE);
             }
         } catch (SQLException ex) {
             ex.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Error saat menyimpan data pembelian: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
-        return hargaBeli;
     }
 
-    private void addPurchaseDetail(String productName, int jumlah) {
-        String query = "INSERT INTO detail_pembelian (id_produk, jumlah) VALUES (?, ?)";
-        try (Connection conn = Dbconnect.getConnect();
-             PreparedStatement stmt = conn.prepareStatement(query)) {
-            stmt.setInt(1, getProductId(productName));
-            stmt.setInt(2, jumlah);
-            stmt.executeUpdate();
-        } catch (SQLException ex) {
-            ex.printStackTrace();
+    private int getSupplierIdByName(String supplierName) {
+        int supplierId = -1;
+        String query = "SELECT id_pemasok FROM pemasok WHERE nama = ?";
+        try (Connection connection = Dbconnect.getConnect();
+             PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+            preparedStatement.setString(1, supplierName);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            if (resultSet.next()) {
+                supplierId = resultSet.getInt("id_pemasok");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
+        return supplierId;
     }
 
     private void loadTableData() {
         DefaultTableModel model = (DefaultTableModel) table.getModel();
-        String query = "SELECT lp.nama, lp.harga_beli, dp.jumlah, (lp.harga_beli * dp.jumlah) AS total_harga " +
-                "FROM detail_pembelian dp JOIN list_produk lp ON dp.id_produk = lp.id_list_produk";
-        try (Connection conn = Dbconnect.getConnect();
-             Statement stmt = conn.createStatement();
-             ResultSet resultSet = stmt.executeQuery(query)) {
-            while (resultSet.next()) {
-                String productName = resultSet.getString("nama");
-                int hargaBeli = resultSet.getInt("harga_beli");
+        String query = "SELECT lp.kode, lp.nama, lp.harga_beli, dp.jumlah FROM detail_pembelian dp JOIN list_produk lp ON dp.id_produk = lp.id_list_produk";
+        try {
+            ResultSet resultSet = Dbconnect.getData(query);
+            while (resultSet != null && resultSet.next()) {
+                String kode = resultSet.getString("kode");
+                String namaBarang = resultSet.getString("nama");
+                int harga = resultSet.getInt("harga_beli");
                 int jumlah = resultSet.getInt("jumlah");
-                int totalHarga = resultSet.getInt("total_harga");
-                model.addRow(new Object[]{productName, "Rp" + hargaBeli, jumlah, "Rp" + totalHarga});
+                int totalHarga = harga * jumlah;
+                model.addRow(new Object[]{kode, namaBarang, "Rp" + harga, jumlah, "Rp" + totalHarga});
             }
-        } catch (SQLException ex) {
-            ex.printStackTrace();
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
-    }
-
-    private int getProductId(String productName) {
-        int productId = 0;
-        String query = "SELECT id_list_produk FROM list_produk WHERE nama = ?";
-        try (Connection conn = Dbconnect.getConnect();
-             PreparedStatement stmt = conn.prepareStatement(query)) {
-            stmt.setString(1, productName);
-            ResultSet resultSet = stmt.executeQuery();
-            if (resultSet.next()) {
-                productId = resultSet.getInt("id_list_produk");
-            }
-        } catch (SQLException ex) {
-            ex.printStackTrace();
-        }
-        return productId;
-    }
-
-    private void tambahButtonActionPerformed(ActionEvent e) {
-        String productName = (String) itemComboBox.getSelectedItem();
-        int jumlah = Integer.parseInt(qtyField.getText());
-        int hargaBeli = getProductPrice(productName);
-        int totalHarga = jumlah * hargaBeli;
-
-        addPurchaseDetail(productName, jumlah);
-
-        DefaultTableModel model = (DefaultTableModel) table.getModel();
-        model.addRow(new Object[]{productName, "Rp" + hargaBeli, jumlah, "Rp" + totalHarga});
-
-        qtyField.setText("");
-        priceField.setText("");
     }
 
     private static class HeaderRenderer extends DefaultTableCellRenderer {
