@@ -12,6 +12,9 @@ import java.util.List;
 
 public class AddPurchaseFrame extends JFrame {
     private JTable table;
+    private JTextField dateField, idField, qtyField;
+    private JComboBox<String> supplierComboBox, itemComboBox;
+    private JTextField priceField;
 
     public AddPurchaseFrame() {
         setTitle("Tambah Pembelian");
@@ -50,11 +53,11 @@ public class AddPurchaseFrame extends JFrame {
         JPanel dateIdSupplierPanel = new JPanel(new GridLayout(3, 2, 5, 5)); 
 
         JLabel dateLabel = new JLabel("Tanggal:");
-        JTextField dateField = new JTextField(15);
-        JLabel idLabel = new JLabel("Kode Transaksi:");
-        JTextField idField = new JTextField(15);
+        dateField = new JTextField(15);
+        JLabel idLabel = new JLabel("Kode Pembelian:");
+        idField = new JTextField(15);
         JLabel supplierLabel = new JLabel("Supplier:");
-        JComboBox<String> supplierComboBox = new JComboBox<>(getSupplierNames().toArray(new String[0]));
+        supplierComboBox = new JComboBox<>(getSupplierNames().toArray(new String[0]));
 
         dateIdSupplierPanel.add(dateLabel);
         dateIdSupplierPanel.add(dateField);
@@ -69,11 +72,11 @@ public class AddPurchaseFrame extends JFrame {
         JPanel itemPanel = new JPanel(new GridLayout(3, 2, 5, 5));
 
         JLabel itemLabel = new JLabel("Cari Barang:");
-        JComboBox<String> itemComboBox = new JComboBox<>(getProductNames().toArray(new String[0]));
+        itemComboBox = new JComboBox<>(getProductNames().toArray(new String[0]));
         JLabel qtyLabel = new JLabel("Jumlah:");
-        JTextField qtyField = new JTextField(5);
+        qtyField = new JTextField(5);
         JLabel priceLabel = new JLabel("Harga:");
-        JTextField priceField = new JTextField(5); 
+        priceField = new JTextField(5); 
         priceField.setEnabled(false); 
         itemPanel.add(itemLabel);
         itemPanel.add(itemComboBox);
@@ -95,7 +98,7 @@ public class AddPurchaseFrame extends JFrame {
         contentPanel.add(inputPanel, BorderLayout.NORTH);
 
         // Tabel untuk menampilkan data
-        String[] columnNames = {"Kode", "Nama Barang", "Harga", "Jumlah", "Total Harga"};
+        String[] columnNames = {"Kode Produk", "Nama Barang", "Harga", "Jumlah", "Total Harga"};
         DefaultTableModel model = new DefaultTableModel(null, columnNames);
         table = new JTable(model) {
             @Override
@@ -154,6 +157,14 @@ public class AddPurchaseFrame extends JFrame {
         add(mainPanel);
         setVisible(true);
 
+        // Listener untuk tombol Tambah
+        tambahButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                addItemToPurchase();
+            }
+        });
+
         // Listener untuk tombol Simpan
         simpanButton.addActionListener(new ActionListener() {
             @Override
@@ -196,6 +207,71 @@ public class AddPurchaseFrame extends JFrame {
         return productNames;
     }
 
+    private void addItemToPurchase() {
+        String selectedItem = (String) itemComboBox.getSelectedItem();
+        int qty = Integer.parseInt(qtyField.getText());
+        int productId = getProductIdByName(selectedItem);
+        int purchaseId = getPurchaseIdByCode(idField.getText());
+        int discount = 0;
+
+        if (productId == -1 || purchaseId == -1) {
+            JOptionPane.showMessageDialog(this, "Data tidak valid!", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        String query = "INSERT INTO detail_pembelian (id_produk, jumlah, id_pembelian, diskon) VALUES (?, ?, ?, ?)";
+        try (Connection connection = Dbconnect.getConnect();
+             PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+            preparedStatement.setInt(1, productId);
+            preparedStatement.setInt(2, qty);
+            preparedStatement.setInt(3, purchaseId);
+            preparedStatement.setInt(4, discount);
+            int rowsAffected = preparedStatement.executeUpdate();
+            if (rowsAffected > 0) {
+                JOptionPane.showMessageDialog(this, "Barang berhasil ditambahkan ke pembelian.", "Success", JOptionPane.INFORMATION_MESSAGE);
+                // Refresh table data after successful insertion if needed
+                loadTableData();
+            } else {
+                JOptionPane.showMessageDialog(this, "Gagal menambahkan barang ke pembelian.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Error saat menambahkan barang ke pembelian: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private int getProductIdByName(String productName) {
+        int productId = -1;
+        String query = "SELECT id_list_produk FROM list_produk WHERE nama = ?";
+        try (Connection connection = Dbconnect.getConnect();
+             PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+            preparedStatement.setString(1, productName);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            if (resultSet.next()) {
+                productId = resultSet.getInt("id_list_produk");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return productId;
+    }
+
+    private int getPurchaseIdByCode(String purchaseCode) {
+        int purchaseId = -1;
+        String query = "SELECT id_pembelian FROM pembelian WHERE kode = ?";
+        try (Connection connection = Dbconnect.getConnect();
+             PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+            preparedStatement.setString(1, purchaseCode);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            if (resultSet.next()) {
+                purchaseId = resultSet.getInt("id_pembelian");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return purchaseId;
+    }
+
     private void savePurchase(String date, String kodeTransaksi, String supplierName) {
         int supplierId = getSupplierIdByName(supplierName);
         if (supplierId == -1) {
@@ -212,8 +288,8 @@ public class AddPurchaseFrame extends JFrame {
             int rowsAffected = preparedStatement.executeUpdate();
             if (rowsAffected > 0) {
                 JOptionPane.showMessageDialog(this, "Data pembelian berhasil disimpan.", "Success", JOptionPane.INFORMATION_MESSAGE);
-                // Refresh table data after successful insertion if needed
-                // loadTableData();
+                loadTableData(); // Refresh table data after successful insertion
+                dispose(); // Close the AddPurchaseFrame
             } else {
                 JOptionPane.showMessageDialog(this, "Gagal menyimpan data pembelian.", "Error", JOptionPane.ERROR_MESSAGE);
             }
@@ -222,6 +298,7 @@ public class AddPurchaseFrame extends JFrame {
             JOptionPane.showMessageDialog(this, "Error saat menyimpan data pembelian: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
+
 
     private int getSupplierIdByName(String supplierName) {
         int supplierId = -1;
@@ -267,4 +344,3 @@ public class AddPurchaseFrame extends JFrame {
         new AddPurchaseFrame();
     }
 }
-

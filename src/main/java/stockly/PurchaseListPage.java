@@ -42,7 +42,7 @@ public class PurchaseListPage extends JFrame {
         titleSearchPanel.add(searchBar, BorderLayout.SOUTH);
         contentPanel.add(titleSearchPanel, BorderLayout.NORTH);
 
-        String[] columnNames = {"Nomor", "Kode", "Tanggal Pembelian", "Nama Pemasok", "Aksi"};
+        String[] columnNames = {"Nomor", "Kode Pembelian", "Tanggal Pembelian", "Nama Pemasok", "Aksi"};
         DefaultTableModel model = new DefaultTableModel(columnNames, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
