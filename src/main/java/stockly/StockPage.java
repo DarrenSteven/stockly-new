@@ -1,16 +1,33 @@
 package stockly;
 
-import javax.swing.*;
-import javax.swing.table.DefaultTableCellRenderer;
-import javax.swing.table.DefaultTableModel;
-import javax.swing.border.EmptyBorder;
-import java.awt.*;
-import java.awt.event.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Vector;
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
+import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
+import javax.swing.border.EmptyBorder;
+import javax.swing.table.DefaultTableModel;
 
 class PlaceholderTextField extends JTextField {
     private String placeholder;
@@ -37,6 +54,7 @@ class PlaceholderTextField extends JTextField {
 public class StockPage extends JFrame {
     private DefaultTableModel tableModel;
     private JTable table;
+    private List<String> productCodes;
 
     public StockPage() {
         setTitle("Stockly - Stock Barang");
@@ -68,11 +86,11 @@ public class StockPage extends JFrame {
         titleSearchPanel.add(searchBar, BorderLayout.SOUTH);
         contentPanel.add(titleSearchPanel, BorderLayout.NORTH);
 
-        String[] columnNames = {"Kode", "Nama Barang", "Jumlah", "Satuan", "Harga Pembelian", "Harga Penjualan", "Aksi"};
+        String[] columnNames = {"Kode", "Nama Barang", "Jumlah", "Satuan", "Harga Pembelian", "Harga Penjualan"};
         tableModel = new DefaultTableModel(columnNames, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return false;
+                return false;  // Make all cells not editable
             }
         };
 
@@ -83,25 +101,10 @@ public class StockPage extends JFrame {
             }
         };
 
-        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
-        centerRenderer.setHorizontalAlignment(JLabel.CENTER);
-        table.setDefaultRenderer(Object.class, centerRenderer);
-
-        DefaultTableCellRenderer leftRenderer = new DefaultTableCellRenderer();
-        leftRenderer.setHorizontalAlignment(JLabel.LEFT);
-        table.getColumnModel().getColumn(1).setCellRenderer(leftRenderer);
-
-        table.getColumnModel().getColumn(6).setCellRenderer((table1, value, isSelected, hasFocus, row, column) -> {
-            JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 5));
-            JButton editButton = new JButton("Edit");
-            JButton deleteButton = new JButton("Hapus");
-            panel.add(editButton);
-            panel.add(deleteButton);
-            return panel;
-        });
-
         JScrollPane scrollPane = new JScrollPane(table);
         contentPanel.add(scrollPane, BorderLayout.CENTER);
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
 
         JButton addButton = new JButton("Tambah Produk");
         addButton.addActionListener(new ActionListener() {
@@ -110,8 +113,26 @@ public class StockPage extends JFrame {
                 new AddProductFrame(StockPage.this);  // Pass reference of StockPage
             }
         });
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         buttonPanel.add(addButton);
+
+        JButton editButton = new JButton("Edit Produk");
+        editButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                showProductSelectionDialog("Edit");
+            }
+        });
+        buttonPanel.add(editButton);
+
+        JButton deleteButton = new JButton("Hapus Produk");
+        deleteButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                showProductSelectionDialog("Delete");
+            }
+        });
+        buttonPanel.add(deleteButton);
+
         contentPanel.add(buttonPanel, BorderLayout.SOUTH);
 
         mainPanel.add(contentPanel, BorderLayout.CENTER);
@@ -129,25 +150,87 @@ public class StockPage extends JFrame {
     }
 
     private void loadDataFromDatabase() {
+        productCodes = new ArrayList<>();
         try (Connection conn = Dbconnect.getConnect();
              PreparedStatement pstmt = conn.prepareStatement("SELECT kode, nama, stock, satuan, harga_beli, harga_jual FROM list_produk");
              ResultSet rs = pstmt.executeQuery()) {
 
             while (rs.next()) {
-                Vector<Object> row = new Vector<>();
-                row.add(rs.getString("kode"));
-                row.add(rs.getString("nama"));
-                row.add(rs.getInt("stock"));
-                row.add(rs.getString("satuan"));
-                row.add(rs.getDouble("harga_beli"));
-                row.add(rs.getDouble("harga_jual"));
-                row.add(""); // Placeholder for "Aksi" column
-
+                Object[] row = {
+                    rs.getString("kode"),
+                    rs.getString("nama"),
+                    rs.getInt("stock"),
+                    rs.getString("satuan"),
+                    rs.getDouble("harga_beli"),
+                    rs.getDouble("harga_jual")
+                };
                 tableModel.addRow(row);
+                productCodes.add(rs.getString("kode"));
             }
         } catch (SQLException ex) {
             ex.printStackTrace();
             JOptionPane.showMessageDialog(this, "Terjadi kesalahan pada database: " + ex.getMessage());
+        }
+    }
+
+    private void showProductSelectionDialog(String action) {
+        String[] productArray = productCodes.toArray(new String[0]);
+        String selectedProduct = (String) JOptionPane.showInputDialog(this,
+                "Pilih produk yang ingin " + action.toLowerCase() + ":",
+                action + " Produk",
+                JOptionPane.PLAIN_MESSAGE,
+                null,
+                productArray,
+                productArray[0]);
+
+        if (selectedProduct != null) {
+            int row = findRowByProductCode(selectedProduct);
+            if (action.equals("Edit")) {
+                editProduct(row);
+            } else if (action.equals("Delete")) {
+                deleteProduct(row);
+            }
+        }
+    }
+
+    private int findRowByProductCode(String productCode) {
+        for (int i = 0; i < tableModel.getRowCount(); i++) {
+            if (tableModel.getValueAt(i, 0).equals(productCode)) {
+                return i;
+            }
+        }
+        return -1;  // Not found
+    }
+
+    private void editProduct(int row) {
+        String productCode = tableModel.getValueAt(row, 0).toString();
+        String name = tableModel.getValueAt(row, 1).toString();
+        int quantity = Integer.parseInt(tableModel.getValueAt(row, 2).toString());
+        String unit = tableModel.getValueAt(row, 3).toString();
+        double purchasePrice = Double.parseDouble(tableModel.getValueAt(row, 4).toString());
+        double sellingPrice = Double.parseDouble(tableModel.getValueAt(row, 5).toString());
+
+        new EditProductFrame(this, productCode, name, quantity, unit, purchasePrice, sellingPrice);
+    }
+
+    private void deleteProduct(int row) {
+        String productCode = tableModel.getValueAt(row, 0).toString();
+        int confirmed = JOptionPane.showConfirmDialog(this, "Apakah Anda yakin ingin menghapus produk ini?", "Konfirmasi Hapus", JOptionPane.YES_NO_OPTION);
+        if (confirmed == JOptionPane.YES_OPTION) {
+            try (Connection conn = Dbconnect.getConnect();
+                 PreparedStatement pstmt = conn.prepareStatement("DELETE FROM list_produk WHERE kode = ?")) {
+                pstmt.setString(1, productCode);
+                int rowsAffected = pstmt.executeUpdate();
+                if (rowsAffected > 0) {
+                    JOptionPane.showMessageDialog(this, "Produk berhasil dihapus!");
+                    refreshTable();
+                } else {
+                    JOptionPane.showMessageDialog(this, "Gagal menghapus produk.");
+                }
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+                JOptionPane.showMessageDialog(this, "Terjadi kesalahan pada database: " + ex.getMessage());
+            }
         }
     }
 
