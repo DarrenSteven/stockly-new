@@ -3,6 +3,7 @@ module stockly {
     requires javafx.fxml;
     requires java.sql;
     requires java.desktop;
+    requires jdatepicker;
 
     opens stockly to javafx.fxml;
     exports stockly;
