@@ -5,8 +5,13 @@ import javax.swing.border.*;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.sql.*;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 public class SalesReportFrame extends JFrame {
     public SalesReportFrame() {
@@ -15,7 +20,6 @@ public class SalesReportFrame extends JFrame {
         setSize(1300, 850);
         setLocationRelativeTo(null);
 
-        // Panel utama untuk konten dan sidebar
         JPanel mainPanel = new JPanel(new BorderLayout());
         mainPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
 
@@ -47,20 +51,20 @@ public class SalesReportFrame extends JFrame {
         dateRangePanel.add(startDatePanel);
         dateRangePanel.add(endDatePanel);
 
-        // Panel untuk section 2: Cari Nama / ID Barang
-        JPanel searchPanel = new JPanel(new GridLayout(2, 1, 5, 5));
-        searchPanel.setBorder(BorderFactory.createTitledBorder("Cari"));
-        searchPanel.setPreferredSize(new Dimension(300, 100));
+        // Panel untuk section 2: Cari Nama Barang
+        JPanel searchPanel = new JPanel(new GridLayout(1, 1, 5, 5));
+        searchPanel.setBorder(BorderFactory.createTitledBorder("Cari Barang"));
+        searchPanel.setPreferredSize(new Dimension(300, 50));
 
         JPanel searchItemPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        JLabel searchItemLabel = new JLabel("Nama / ID Barang:");
-        JTextField searchItemTextField = new JTextField(10);
+        JLabel searchItemLabel = new JLabel("Nama Barang:");
+        JComboBox<String> searchItemComboBox = new JComboBox<>(getProductNames().toArray(new String[0]));
         searchItemPanel.add(searchItemLabel);
-        searchItemPanel.add(searchItemTextField);
+        searchItemPanel.add(searchItemComboBox);
 
         searchPanel.add(searchItemPanel);
 
-        // Panel untuk input (section 1 dan section 2)
+        // Panel input (section 1 dan section 2)
         JPanel inputPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         inputPanel.add(dateRangePanel);
         inputPanel.add(searchPanel);
@@ -70,13 +74,13 @@ public class SalesReportFrame extends JFrame {
 
         JLabel tableTitleLabel = new JLabel("Laporan Penjualan");
         tableTitleLabel.setFont(new Font("Arial", Font.BOLD, 16));
-        tableTitleLabel.setHorizontalAlignment(SwingConstants.CENTER); 
+        tableTitleLabel.setHorizontalAlignment(SwingConstants.CENTER);
         titleDatePanel.add(tableTitleLabel, BorderLayout.NORTH);
 
         SimpleDateFormat dateFormat = new SimpleDateFormat("dd-MM-yyyy");
         String currentDate = dateFormat.format(new Date());
         JLabel dateRangeLabel = new JLabel("Tanggal " + currentDate + " s.d. " + currentDate);
-        dateRangeLabel.setHorizontalAlignment(SwingConstants.CENTER); 
+        dateRangeLabel.setHorizontalAlignment(SwingConstants.CENTER);
         titleDatePanel.add(dateRangeLabel, BorderLayout.CENTER);
 
         // Panel untuk tombol Generate dan Reset
@@ -91,7 +95,7 @@ public class SalesReportFrame extends JFrame {
 
         JPanel topPanel = new JPanel();
         topPanel.setLayout(new BoxLayout(topPanel, BoxLayout.Y_AXIS));
-        topPanel.setPreferredSize(new Dimension(1300, 200)); 
+        topPanel.setPreferredSize(new Dimension(1300, 200));
         topPanel.add(inputPanel);
         topPanel.add(buttonPanel);
         topPanel.add(titleDatePanel);
@@ -101,15 +105,8 @@ public class SalesReportFrame extends JFrame {
         // Panel untuk tabel laporan penjualan
         JPanel tablePanel = new JPanel(new BorderLayout());
 
-        String[] columnNames = {"Tgl", "ID Transaksi", "Jenis Pelanggan", "Total"};
-        Object[][] data = {
-                {"01-04-2024", "ID001", "Cash", "Rp100.000"},
-                {"02-04-2024", "ID002", "Cash", "Rp150.000"},
-                {"03-04-2024", "ID003", "Cash", "Rp50.000"},
-                {"04-04-2024", "ID004", "Cash", "Rp200.000"}
-        };
-
-        DefaultTableModel model = new DefaultTableModel(data, columnNames);
+        String[] columnNames = {"Tanggal", "Kode Penjualan", "Nama Barang", "Jumlah", "Jenis Pelanggan", "Total"};
+        DefaultTableModel model = new DefaultTableModel(columnNames, 0);
         JTable table = new JTable(model);
         table.setFont(new Font("Arial", Font.PLAIN, 12));
         table.setRowHeight(30);
@@ -129,6 +126,77 @@ public class SalesReportFrame extends JFrame {
 
         add(mainPanel);
         setVisible(true);
+
+        // Load data from database
+        loadDataFromDatabase(model);
+
+        // Filter by product name when Generate button is clicked
+        generateButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                String selectedProductName = (String) searchItemComboBox.getSelectedItem();
+                filterDataByProductName(selectedProductName, model);
+            }
+        });
+    }
+
+    private void loadDataFromDatabase(DefaultTableModel model) {
+        try (Connection connection = Dbconnect.getConnect()) {
+            String query = "SELECT penjualan.tanggal, penjualan.kode, list_produk.nama AS nama_barang, detail_penjualan.jumlah, 'Cash' AS jenis_pelanggan, (detail_penjualan.jumlah * list_produk.harga_jual) AS total FROM penjualan LEFT JOIN detail_penjualan ON penjualan.id_penjualan = detail_penjualan.id_penjualan LEFT JOIN list_produk ON detail_penjualan.id_produk = list_produk.id_list_produk";
+            PreparedStatement preparedStatement = connection.prepareStatement(query);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            while (resultSet.next()) {
+                String tanggal = resultSet.getString("tanggal");
+                String kodePenjualan = resultSet.getString("kode");
+                String namaBarang = resultSet.getString("nama_barang");
+                int jumlah = resultSet.getInt("jumlah");
+                String jenisPelanggan = resultSet.getString("jenis_pelanggan");
+                double total = resultSet.getDouble("total");
+                // Add data to the table
+                model.addRow(new Object[]{tanggal, kodePenjualan, namaBarang, jumlah, jenisPelanggan, "Rp" + total});
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Failed to retrieve data from the database.", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private List<String> getProductNames() {
+        List<String> productNames = new ArrayList<>();
+        String query = "SELECT nama FROM list_produk";
+        try {
+            ResultSet resultSet = Dbconnect.getData(query);
+            while (resultSet != null && resultSet.next()) {
+                String productName = resultSet.getString("nama");
+                productNames.add(productName);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return productNames;
+    }
+
+    private void filterDataByProductName(String productName, DefaultTableModel model) {
+        model.setRowCount(0); // Clear the table before adding filtered data
+        try (Connection connection = Dbconnect.getConnect()) {
+            String query = "SELECT penjualan.tanggal, penjualan.kode, list_produk.nama AS nama_barang, detail_penjualan.jumlah, 'Cash' AS jenis_pelanggan, (detail_penjualan.jumlah * list_produk.harga_jual) AS total FROM penjualan LEFT JOIN detail_penjualan ON penjualan.id_penjualan = detail_penjualan.id_penjualan LEFT JOIN list_produk ON detail_penjualan.id_produk = list_produk.id_list_produk WHERE list_produk.nama = ?";
+            PreparedStatement preparedStatement = connection.prepareStatement(query);
+            preparedStatement.setString(1, productName);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            while (resultSet.next()) {
+                String tanggal = resultSet.getString("tanggal");
+                String kodePenjualan = resultSet.getString("kode");
+                String namaBarang = resultSet.getString("nama_barang");
+                int jumlah = resultSet.getInt("jumlah");
+                String jenisPelanggan = resultSet.getString("jenis_pelanggan");
+                double total = resultSet.getDouble("total");
+                // Add data to the table
+                model.addRow(new Object[]{tanggal, kodePenjualan, namaBarang, jumlah, jenisPelanggan, "Rp" + total});
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Failed to retrieve filtered data from the database.", "Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     public static void main(String[] args) {
