@@ -36,4 +36,18 @@ public class Dbconnect {
         }
         return resultSet;
     }
+
+    public static void executeUpdate(String query) {
+        try {
+            Connection connection = getConnect();
+            Statement statement = connection.createStatement();
+            statement.executeUpdate(query);
+            statement.close();
+            connection.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+    
+
 }

@@ -6,6 +6,8 @@ import javax.swing.table.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -56,6 +58,7 @@ public class AddPurchaseFrame extends JFrame {
         dateField = new JTextField(15);
         JLabel idLabel = new JLabel("Kode Pembelian:");
         idField = new JTextField(15);
+        idField.setText(generatePurchaseCode());
         JLabel supplierLabel = new JLabel("Supplier:");
         supplierComboBox = new JComboBox<>(getSupplierNames().toArray(new String[0]));
 
@@ -173,6 +176,22 @@ public class AddPurchaseFrame extends JFrame {
             }
         });
 
+        // Listener untuk perubahan pada qtyField
+        qtyField.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyReleased(KeyEvent e) {
+                updatePriceField();
+            }
+        });
+
+        // Listener untuk perubahan pada itemComboBox
+        itemComboBox.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                updatePriceField();
+            }
+        });
+
         // Load data dari database ke tabel
         loadTableData();
     }
@@ -210,26 +229,21 @@ public class AddPurchaseFrame extends JFrame {
     private void addItemToPurchase() {
         String selectedItem = (String) itemComboBox.getSelectedItem();
         int qty = Integer.parseInt(qtyField.getText());
-        int productId = getProductIdByName(selectedItem);
+        int price = Integer.parseInt(priceField.getText());
+        int totalPrice = qty * price;
+
         int purchaseId = getPurchaseIdByCode(idField.getText());
-        int discount = 0;
+        int productId = getProductIdByName(selectedItem);
 
-        if (productId == -1 || purchaseId == -1) {
-            JOptionPane.showMessageDialog(this, "Data tidak valid!", "Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-
-        String query = "INSERT INTO detail_pembelian (id_produk, jumlah, id_pembelian, diskon) VALUES (?, ?, ?, ?)";
+        String query = "INSERT INTO detail_pembelian (id_produk, jumlah) VALUES (?, ?)";
         try (Connection connection = Dbconnect.getConnect();
              PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             preparedStatement.setInt(1, productId);
             preparedStatement.setInt(2, qty);
-            preparedStatement.setInt(3, purchaseId);
-            preparedStatement.setInt(4, discount);
             int rowsAffected = preparedStatement.executeUpdate();
             if (rowsAffected > 0) {
                 JOptionPane.showMessageDialog(this, "Barang berhasil ditambahkan ke pembelian.", "Success", JOptionPane.INFORMATION_MESSAGE);
-                // Refresh table data after successful insertion if needed
+                // Refresh table data after successful insertion
                 loadTableData();
             } else {
                 JOptionPane.showMessageDialog(this, "Gagal menambahkan barang ke pembelian.", "Error", JOptionPane.ERROR_MESSAGE);
@@ -279,14 +293,30 @@ public class AddPurchaseFrame extends JFrame {
             return;
         }
 
+        int purchaseId = saveNewPurchase(date, kodeTransaksi, supplierId);
+
+        if (purchaseId != -1) {
+            // Ambil id_pembelian dari pembelian baru
+            // Cek apakah kolom id_pembelian di tabel detail_pembelian masih kosong
+            // Jika kosong, isi dengan id_pembelian yang baru saja diambil
+            updateDetailPurchaseWithPurchaseId(purchaseId);
+        }
+    }
+
+    private int saveNewPurchase(String date, String kodeTransaksi, int supplierId) {
+        int purchaseId = -1;
         String query = "INSERT INTO pembelian (tanggal, kode, id_pemasok) VALUES (?, ?, ?)";
         try (Connection connection = Dbconnect.getConnect();
-             PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+             PreparedStatement preparedStatement = connection.prepareStatement(query, Statement.RETURN_GENERATED_KEYS)) {
             preparedStatement.setString(1, date);
             preparedStatement.setString(2, kodeTransaksi);
             preparedStatement.setInt(3, supplierId);
             int rowsAffected = preparedStatement.executeUpdate();
             if (rowsAffected > 0) {
+                ResultSet generatedKeys = preparedStatement.getGeneratedKeys();
+                if (generatedKeys.next()) {
+                    purchaseId = generatedKeys.getInt(1);
+                }
                 JOptionPane.showMessageDialog(this, "Data pembelian berhasil disimpan.", "Success", JOptionPane.INFORMATION_MESSAGE);
                 loadTableData(); // Refresh table data after successful insertion
                 dispose(); // Close the AddPurchaseFrame
@@ -297,8 +327,27 @@ public class AddPurchaseFrame extends JFrame {
             ex.printStackTrace();
             JOptionPane.showMessageDialog(this, "Error saat menyimpan data pembelian: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
+        return purchaseId;
     }
-
+    
+    private void updateDetailPurchaseWithPurchaseId(int purchaseId) {
+        String query = "UPDATE detail_pembelian SET id_pembelian = ? WHERE id_pembelian IS NULL";
+        try (Connection connection = Dbconnect.getConnect();
+             PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+            preparedStatement.setInt(1, purchaseId);
+            int rowsAffected = preparedStatement.executeUpdate();
+            if (rowsAffected > 0) {
+                JOptionPane.showMessageDialog(this, "Data pembelian berhasil di Update.", "Success", JOptionPane.INFORMATION_MESSAGE);
+                loadTableData(); // Refresh table data after successful update
+                dispose(); // Close the AddPurchaseFrame
+            } else {
+                JOptionPane.showMessageDialog(this, "Gagal mengupdate data pembelian.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Error saat mengupdate data pembelian: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
 
     private int getSupplierIdByName(String supplierName) {
         int supplierId = -1;
@@ -316,8 +365,39 @@ public class AddPurchaseFrame extends JFrame {
         return supplierId;
     }
 
+    private int getProductPriceByName(String productName) {
+        int productPrice = 0;
+        String query = "SELECT harga_beli FROM list_produk WHERE nama = ?";
+        try (Connection connection = Dbconnect.getConnect();
+             PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+            preparedStatement.setString(1, productName);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            if (resultSet.next()) {
+                productPrice = resultSet.getInt("harga_beli");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return productPrice;
+    }
+
+    private void updatePriceField() {
+        String selectedItem = (String) itemComboBox.getSelectedItem();
+        int qty = 0;
+        try {
+            qty = Integer.parseInt(qtyField.getText());
+        } catch (NumberFormatException e) {
+            // Ignore invalid number format
+        }
+        int pricePerUnit = getProductPriceByName(selectedItem);
+        int totalPrice = pricePerUnit * qty;
+        priceField.setText(String.valueOf(totalPrice));
+    }
+
     private void loadTableData() {
         DefaultTableModel model = (DefaultTableModel) table.getModel();
+        model.setRowCount(0); // Clear existing data
+
         String query = "SELECT lp.kode, lp.nama, lp.harga_beli, dp.jumlah FROM detail_pembelian dp JOIN list_produk lp ON dp.id_produk = lp.id_list_produk";
         try {
             ResultSet resultSet = Dbconnect.getData(query);
@@ -334,6 +414,34 @@ public class AddPurchaseFrame extends JFrame {
         }
     }
 
+    private String generatePurchaseCode() {
+        String lastPurchaseCode = getLastPurchaseCode();
+        if (lastPurchaseCode != null) {
+            // Ambil angka dari kode terakhir dan tambahkan satu
+            int lastCodeNumber = Integer.parseInt(lastPurchaseCode.substring(2)); // Dapatkan angka setelah "PB"
+            String newCodeNumber = String.format("%02d", lastCodeNumber + 1); // Format dengan dua digit
+            return "PB" + newCodeNumber;
+        } else {
+            // Jika tidak ada kode pembelian sebelumnya, mulai dari PB01
+            return "PB01";
+        }
+    }
+    
+    private String getLastPurchaseCode() {
+        String lastPurchaseCode = null;
+        String query = "SELECT kode FROM pembelian ORDER BY id_pembelian DESC LIMIT 1";
+        try (Connection connection = Dbconnect.getConnect();
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(query)) {
+            if (resultSet.next()) {
+                lastPurchaseCode = resultSet.getString("kode");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return lastPurchaseCode;
+    }    
+
     private static class HeaderRenderer extends DefaultTableCellRenderer {
         public HeaderRenderer() {
             setHorizontalAlignment(SwingConstants.CENTER);
@@ -344,3 +452,4 @@ public class AddPurchaseFrame extends JFrame {
         new AddPurchaseFrame();
     }
 }
+
