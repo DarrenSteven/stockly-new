@@ -12,17 +12,11 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-import net.sourceforge.jdatepicker.impl.JDatePanelImpl;
-import net.sourceforge.jdatepicker.impl.JDatePickerImpl;
-import net.sourceforge.jdatepicker.impl.UtilDateModel;
-
 public class AddPurchaseFrame extends JFrame {
     private JTable table;
     private JTextField dateField, idField, qtyField;
     private JComboBox<String> supplierComboBox, itemComboBox;
     private JTextField priceField;
-
-    private JDatePickerImpl datePickerPurchase;
 
     public AddPurchaseFrame() {
         setTitle("Tambah Pembelian");
@@ -61,12 +55,7 @@ public class AddPurchaseFrame extends JFrame {
         JPanel dateIdSupplierPanel = new JPanel(new GridLayout(3, 2, 5, 5)); 
 
         JLabel dateLabel = new JLabel("Tanggal:");
-        // dateField = new JTextField(15);
-
-        UtilDateModel modelStart = new UtilDateModel();
-        JDatePanelImpl datePanelStart = new JDatePanelImpl(modelStart);
-        datePickerPurchase = new JDatePickerImpl(datePanelStart);
-
+        dateField = new JTextField(15);
         JLabel idLabel = new JLabel("Kode Pembelian:");
         idField = new JTextField(15);
         idField.setText(generatePurchaseCode());
@@ -74,8 +63,7 @@ public class AddPurchaseFrame extends JFrame {
         supplierComboBox = new JComboBox<>(getSupplierNames().toArray(new String[0]));
 
         dateIdSupplierPanel.add(dateLabel);
-        dateIdSupplierPanel.add(datePickerPurchase);
-        // dateIdSupplierPanel.add(dateField);
+        dateIdSupplierPanel.add(dateField);
         dateIdSupplierPanel.add(idLabel);
         dateIdSupplierPanel.add(idField);
         dateIdSupplierPanel.add(supplierLabel);
@@ -243,15 +231,16 @@ public class AddPurchaseFrame extends JFrame {
         int qty = Integer.parseInt(qtyField.getText());
         int price = Integer.parseInt(priceField.getText());
         int totalPrice = qty * price;
-
+    
         int purchaseId = getPurchaseIdByCode(idField.getText());
         int productId = getProductIdByName(selectedItem);
-
-        String query = "INSERT INTO detail_pembelian (id_produk, jumlah) VALUES (?, ?)";
+    
+        String query = "INSERT INTO temp_detail_pembelian (id_produk, jumlah, total) VALUES (?, ?, ?)";
         try (Connection connection = Dbconnect.getConnect();
              PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             preparedStatement.setInt(1, productId);
             preparedStatement.setInt(2, qty);
+            preparedStatement.setInt(3, totalPrice); // Memasukkan nilai total yang sudah dihitung
             int rowsAffected = preparedStatement.executeUpdate();
             if (rowsAffected > 0) {
                 JOptionPane.showMessageDialog(this, "Barang berhasil ditambahkan ke pembelian.", "Success", JOptionPane.INFORMATION_MESSAGE);
@@ -299,21 +288,51 @@ public class AddPurchaseFrame extends JFrame {
     }
 
     private void savePurchase(String date, String kodeTransaksi, String supplierName) {
+        // Mendapatkan ID pemasok berdasarkan nama
         int supplierId = getSupplierIdByName(supplierName);
         if (supplierId == -1) {
             JOptionPane.showMessageDialog(this, "Supplier tidak valid!", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
-
+    
+        // Menyimpan pembelian baru dan mendapatkan ID pembelian yang baru disimpan
         int purchaseId = saveNewPurchase(date, kodeTransaksi, supplierId);
-
+    
+        // Jika pembelian berhasil disimpan, pindahkan data dari temp_detail_pembelian ke detail_pembelian
         if (purchaseId != -1) {
-            // Ambil id_pembelian dari pembelian baru
-            // Cek apakah kolom id_pembelian di tabel detail_pembelian masih kosong
-            // Jika kosong, isi dengan id_pembelian yang baru saja diambil
-            updateDetailPurchaseWithPurchaseId(purchaseId);
+            moveDataFromTempToDetail(purchaseId);
         }
     }
+
+    private void moveDataFromTempToDetail(int purchaseId) {
+        String moveQuery = "INSERT INTO detail_pembelian (id_produk, id_pembelian, jumlah, total) " +
+                           "SELECT id_produk, ?, jumlah, total FROM temp_detail_pembelian";
+        String deleteTempQuery = "DELETE FROM temp_detail_pembelian";
+        
+        try (Connection connection = Dbconnect.getConnect();
+             PreparedStatement moveStatement = connection.prepareStatement(moveQuery);
+             PreparedStatement deleteStatement = connection.prepareStatement(deleteTempQuery)) {
+            moveStatement.setInt(1, purchaseId);
+            
+            // Memindahkan data dari temp_detail_pembelian ke detail_pembelian
+            int rowsMoved = moveStatement.executeUpdate();
+            
+            // Menghapus semua data dari temp_detail_pembelian setelah dipindahkan
+            int rowsDeleted = deleteStatement.executeUpdate();
+            
+            // Jika berhasil memindahkan dan menghapus data
+            if (rowsMoved > 0 && rowsDeleted > 0) {
+                JOptionPane.showMessageDialog(this, "Data pembelian berhasil disimpan.", "Success", JOptionPane.INFORMATION_MESSAGE);
+                loadTableData(); // Refresh table data after successful insertion
+                dispose(); // Close the AddPurchaseFrame
+            } else {
+                JOptionPane.showMessageDialog(this, "Gagal menyimpan data pembelian.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Error saat menyimpan data pembelian: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }    
 
     private int saveNewPurchase(String date, String kodeTransaksi, int supplierId) {
         int purchaseId = -1;
@@ -343,7 +362,7 @@ public class AddPurchaseFrame extends JFrame {
     }
     
     private void updateDetailPurchaseWithPurchaseId(int purchaseId) {
-        String query = "UPDATE detail_pembelian SET id_pembelian = ? WHERE id_pembelian IS NULL";
+        String query = "UPDATE temp_detail_pembelian SET id_pembelian = ? WHERE id_pembelian IS NULL";
         try (Connection connection = Dbconnect.getConnect();
              PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             preparedStatement.setInt(1, purchaseId);
@@ -409,8 +428,8 @@ public class AddPurchaseFrame extends JFrame {
     private void loadTableData() {
         DefaultTableModel model = (DefaultTableModel) table.getModel();
         model.setRowCount(0); // Clear existing data
-
-        String query = "SELECT lp.kode, lp.nama, lp.harga_beli, dp.jumlah FROM detail_pembelian dp JOIN list_produk lp ON dp.id_produk = lp.id_list_produk";
+    
+        String query = "SELECT lp.kode, lp.nama, lp.harga_beli, dp.jumlah, dp.total FROM temp_detail_pembelian dp JOIN list_produk lp ON dp.id_produk = lp.id_list_produk";
         try {
             ResultSet resultSet = Dbconnect.getData(query);
             while (resultSet != null && resultSet.next()) {
@@ -418,13 +437,14 @@ public class AddPurchaseFrame extends JFrame {
                 String namaBarang = resultSet.getString("nama");
                 int harga = resultSet.getInt("harga_beli");
                 int jumlah = resultSet.getInt("jumlah");
-                int totalHarga = harga * jumlah;
+                int totalHarga = resultSet.getInt("total"); // Ambil nilai total dari database
                 model.addRow(new Object[]{kode, namaBarang, "Rp" + harga, jumlah, "Rp" + totalHarga});
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
+    
 
     private String generatePurchaseCode() {
         String lastPurchaseCode = getLastPurchaseCode();
@@ -448,7 +468,7 @@ public class AddPurchaseFrame extends JFrame {
             if (resultSet.next()) {
                 lastPurchaseCode = resultSet.getString("kode");
             }
-        } catch (SQLException e) {
+        } catch (SQLException e) { 
             e.printStackTrace();
         }
         return lastPurchaseCode;
@@ -464,4 +484,3 @@ public class AddPurchaseFrame extends JFrame {
         new AddPurchaseFrame();
     }
 }
-

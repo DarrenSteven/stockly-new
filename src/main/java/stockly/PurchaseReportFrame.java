@@ -207,11 +207,13 @@ public class PurchaseReportFrame extends JFrame {
         // Update dateRangeLabel with selected start and end dates
         dateRangeLabel.setText("Tanggal " + indonesianDateFormat.format(startDate) + " s.d. " + indonesianDateFormat.format(endDate));
 
-        StringBuilder queryBuilder = new StringBuilder("SELECT pembelian.tanggal, pembelian.kode, list_produk.nama AS nama_barang, pemasok.nama AS nama_supplier, 0 AS total " +
-                "FROM pembelian " +
-                "JOIN detail_pembelian ON pembelian.id_pembelian = detail_pembelian.id_pembelian " +
-                "JOIN list_produk ON detail_pembelian.id_produk = list_produk.id_list_produk " +
-                "JOIN pemasok ON pembelian.id_pemasok = pemasok.id_pemasok WHERE 1=1");
+        StringBuilder queryBuilder = new StringBuilder("SELECT pembelian.tanggal, pembelian.kode, list_produk.nama AS nama_barang, pemasok.nama AS nama_supplier, detail_pembelian.total " +
+        "FROM pembelian " +
+        "JOIN detail_pembelian ON pembelian.id_pembelian = detail_pembelian.id_pembelian " +
+        "JOIN list_produk ON detail_pembelian.id_produk = list_produk.id_list_produk " +
+        "JOIN pemasok ON pembelian.id_pemasok = pemasok.id_pemasok WHERE 1=1");
+
+        tableModel.setRowCount(0);
 
         if (!"Semua".equals(selectedItem)) {
             queryBuilder.append(" AND list_produk.nama = '").append(selectedItem).append("'");
@@ -233,12 +235,16 @@ public class PurchaseReportFrame extends JFrame {
                 String kode = resultSet.getString("kode");
                 String namaBarang = resultSet.getString("nama_barang");
                 String namaSupplier = resultSet.getString("nama_supplier");
-                String total = resultSet.getString("total");
+                
+                // Ambil nilai total dari detail_pembelian
+                int total = resultSet.getInt("total");
+        
+                // Add row to table model
                 tableModel.addRow(new Object[]{tanggal, kode, namaBarang, namaSupplier, total});
             }
         } catch (SQLException e) {
             e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Terjadi kesalahan pada database: " + e.getMessage());
+            // Handle SQL exception or log it
         }
     }
 
