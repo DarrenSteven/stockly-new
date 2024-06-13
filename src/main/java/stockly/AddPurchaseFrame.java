@@ -12,11 +12,17 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
+import net.sourceforge.jdatepicker.impl.JDatePanelImpl;
+import net.sourceforge.jdatepicker.impl.JDatePickerImpl;
+import net.sourceforge.jdatepicker.impl.UtilDateModel;
+
 public class AddPurchaseFrame extends JFrame {
     private JTable table;
     private JTextField dateField, idField, qtyField;
     private JComboBox<String> supplierComboBox, itemComboBox;
     private JTextField priceField;
+
+    private JDatePickerImpl datePickerPurchase;
 
     public AddPurchaseFrame() {
         setTitle("Tambah Pembelian");
@@ -55,7 +61,12 @@ public class AddPurchaseFrame extends JFrame {
         JPanel dateIdSupplierPanel = new JPanel(new GridLayout(3, 2, 5, 5)); 
 
         JLabel dateLabel = new JLabel("Tanggal:");
-        dateField = new JTextField(15);
+        // dateField = new JTextField(15);
+
+        UtilDateModel modelStart = new UtilDateModel();
+        JDatePanelImpl datePanelStart = new JDatePanelImpl(modelStart);
+        datePickerPurchase = new JDatePickerImpl(datePanelStart);
+
         JLabel idLabel = new JLabel("Kode Pembelian:");
         idField = new JTextField(15);
         idField.setText(generatePurchaseCode());
@@ -63,7 +74,8 @@ public class AddPurchaseFrame extends JFrame {
         supplierComboBox = new JComboBox<>(getSupplierNames().toArray(new String[0]));
 
         dateIdSupplierPanel.add(dateLabel);
-        dateIdSupplierPanel.add(dateField);
+        dateIdSupplierPanel.add(datePickerPurchase);
+        // dateIdSupplierPanel.add(dateField);
         dateIdSupplierPanel.add(idLabel);
         dateIdSupplierPanel.add(idField);
         dateIdSupplierPanel.add(supplierLabel);

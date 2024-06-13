@@ -12,13 +12,25 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
+
+import net.sourceforge.jdatepicker.impl.JDatePanelImpl;
+import net.sourceforge.jdatepicker.impl.JDatePickerImpl;
+import net.sourceforge.jdatepicker.impl.UtilDateModel;
 
 public class PurchaseReportFrame extends JFrame {
     private JComboBox<String> searchItemComboBox;
     private JComboBox<String> searchVendorComboBox;
     private DefaultTableModel tableModel;
-    private JTextField startDateTextField;
-    private JTextField endDateTextField;
+
+    private JDatePickerImpl datePickerStart;
+    private JDatePickerImpl datePickerEnd;
+
+    private JLabel dateRangeLabel;
+
+    // Indonesian date format
+    private SimpleDateFormat indonesianDateFormat = new SimpleDateFormat("dd MMMM yyyy", new Locale("id", "ID"));
+    private SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
 
     public PurchaseReportFrame() {
         setTitle("Laporan Pembelian");
@@ -39,50 +51,66 @@ public class PurchaseReportFrame extends JFrame {
         contentPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
 
         // Panel untuk section 1: Tanggal Mulai dan Tanggal Akhir
-        JPanel dateRangePanel = new JPanel(new GridLayout(2, 1, 5, 5));
+        JPanel dateRangePanel = new JPanel(new GridBagLayout());
         dateRangePanel.setBorder(BorderFactory.createTitledBorder("Rentang Tanggal"));
-        dateRangePanel.setPreferredSize(new Dimension(300, 100));
+        dateRangePanel.setPreferredSize(new Dimension(400, 150));
+        
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(5, 5, 5, 5);
 
-        JPanel startDatePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        // Tanggal Mulai
+        gbc.gridx = 0;
+        gbc.gridy = 0;
         JLabel startDateLabel = new JLabel("Tanggal Mulai:");
-        startDateTextField = new JTextField(10);
-        startDatePanel.add(startDateLabel);
-        startDatePanel.add(startDateTextField);
+        dateRangePanel.add(startDateLabel, gbc);
 
-        JPanel endDatePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        gbc.gridx = 1;
+        UtilDateModel modelStart = new UtilDateModel();
+        JDatePanelImpl datePanelStart = new JDatePanelImpl(modelStart);
+        datePickerStart = new JDatePickerImpl(datePanelStart);
+        dateRangePanel.add(datePickerStart, gbc);
+
+        // Tanggal Akhir
+        gbc.gridx = 0;
+        gbc.gridy = 1;
         JLabel endDateLabel = new JLabel("Tanggal Akhir:");
-        endDateTextField = new JTextField(10);
-        endDatePanel.add(endDateLabel);
-        endDatePanel.add(endDateTextField);
+        dateRangePanel.add(endDateLabel, gbc);
 
-        dateRangePanel.add(startDatePanel);
-        dateRangePanel.add(endDatePanel);
+        gbc.gridx = 1;
+        UtilDateModel modelEnd = new UtilDateModel();
+        JDatePanelImpl datePanelEnd = new JDatePanelImpl(modelEnd);
+        datePickerEnd = new JDatePickerImpl(datePanelEnd);
+        dateRangePanel.add(datePickerEnd, gbc);
 
         // Panel untuk section 2: Cari Nama Barang dan Nama Supplier
-        JPanel searchPanel = new JPanel(new GridLayout(2, 1, 5, 5));
+        JPanel searchPanel = new JPanel(new GridBagLayout());
         searchPanel.setBorder(BorderFactory.createTitledBorder("Cari"));
-        searchPanel.setPreferredSize(new Dimension(300, 100));
+        searchPanel.setPreferredSize(new Dimension(400, 150));
 
-        // Dropdown untuk Nama Barang
-        JPanel searchItemPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        // Cari Nama Barang
+        gbc.gridx = 0;
+        gbc.gridy = 0;
         JLabel searchItemLabel = new JLabel("Nama Barang:");
+        searchPanel.add(searchItemLabel, gbc);
+
+        gbc.gridx = 1;
         List<String> productNames = getProductNames();
         productNames.add(0, "Semua");
         searchItemComboBox = new JComboBox<>(productNames.toArray(new String[0]));
-        searchItemPanel.add(searchItemLabel);
-        searchItemPanel.add(searchItemComboBox);
+        searchPanel.add(searchItemComboBox, gbc);
 
-        // Dropdown untuk Nama Supplier
-        JPanel searchVendorPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        // Cari Nama Supplier
+        gbc.gridx = 0;
+        gbc.gridy = 1;
         JLabel searchVendorLabel = new JLabel("Nama Supplier:");
+        searchPanel.add(searchVendorLabel, gbc);
+
+        gbc.gridx = 1;
         List<String> supplierNames = getSupplierNames();
         supplierNames.add(0, "Semua");
         searchVendorComboBox = new JComboBox<>(supplierNames.toArray(new String[0]));
-        searchVendorPanel.add(searchVendorLabel);
-        searchVendorPanel.add(searchVendorComboBox);
-
-        searchPanel.add(searchItemPanel);
-        searchPanel.add(searchVendorPanel);
+        searchPanel.add(searchVendorComboBox, gbc);
 
         // Panel untuk input (section 1 dan section 2)
         JPanel inputPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
@@ -97,9 +125,8 @@ public class PurchaseReportFrame extends JFrame {
         tableTitleLabel.setHorizontalAlignment(SwingConstants.CENTER);
         titleDatePanel.add(tableTitleLabel, BorderLayout.NORTH);
 
-        SimpleDateFormat dateFormat = new SimpleDateFormat("dd-MM-yyyy");
-        String currentDate = dateFormat.format(new Date());
-        JLabel dateRangeLabel = new JLabel("Tanggal " + currentDate + " s.d. " + currentDate);
+        String currentDate = indonesianDateFormat.format(new Date());
+        dateRangeLabel = new JLabel("Tanggal " + currentDate + " s.d. " + currentDate);
         dateRangeLabel.setHorizontalAlignment(SwingConstants.CENTER);
         titleDatePanel.add(dateRangeLabel, BorderLayout.CENTER);
 
@@ -115,7 +142,7 @@ public class PurchaseReportFrame extends JFrame {
 
         JPanel topPanel = new JPanel();
         topPanel.setLayout(new BoxLayout(topPanel, BoxLayout.Y_AXIS));
-        topPanel.setPreferredSize(new Dimension(1300, 200));
+        topPanel.setPreferredSize(new Dimension(1300, 250));
         topPanel.add(inputPanel);
         topPanel.add(buttonPanel);
         topPanel.add(titleDatePanel);
@@ -155,14 +182,30 @@ public class PurchaseReportFrame extends JFrame {
             }
         });
 
+        // Action listener untuk tombol "Reset"
+        resetButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                resetFields();
+            }
+        });
+
         setVisible(true);
     }
 
     private void updateTable() {
         String selectedItem = (String) searchItemComboBox.getSelectedItem();
         String selectedVendor = (String) searchVendorComboBox.getSelectedItem();
-        String startDate = startDateTextField.getText().trim();
-        String endDate = endDateTextField.getText().trim();
+        Date startDate = (Date) datePickerStart.getModel().getValue();
+        Date endDate = (Date) datePickerEnd.getModel().getValue();
+
+        if (startDate == null || endDate == null) {
+            JOptionPane.showMessageDialog(this, "Harap pilih rentang tanggal yang valid!", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        // Update dateRangeLabel with selected start and end dates
+        dateRangeLabel.setText("Tanggal " + indonesianDateFormat.format(startDate) + " s.d. " + indonesianDateFormat.format(endDate));
 
         StringBuilder queryBuilder = new StringBuilder("SELECT pembelian.tanggal, pembelian.kode, list_produk.nama AS nama_barang, pemasok.nama AS nama_supplier, 0 AS total " +
                 "FROM pembelian " +
@@ -178,63 +221,67 @@ public class PurchaseReportFrame extends JFrame {
             queryBuilder.append(" AND pemasok.nama = '").append(selectedVendor).append("'");
         }
 
-        // Buat format tanggal yang sesuai untuk kueri SQL
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-        if (!startDate.isEmpty() && !endDate.isEmpty()) {
-            queryBuilder.append(" AND pembelian.tanggal BETWEEN '").append(startDate).append("' AND '").append(endDate).append("'");
-            }
-            String query = queryBuilder.toString();
+        queryBuilder.append(" AND pembelian.tanggal BETWEEN '").append(dateFormat.format(startDate)).append("' AND '").append(dateFormat.format(endDate)).append("'");
 
-            tableModel.setRowCount(0);
-        
-            try (Connection connection = Dbconnect.getConnect();
-                 Statement statement = connection.createStatement();
-                 ResultSet resultSet = statement.executeQuery(query)) {
-                while (resultSet.next()) {
-                    String tanggal = resultSet.getString("tanggal");
-                    String kodePembelian = resultSet.getString("kode");
-                    String namaSupplier = resultSet.getString("nama_supplier");
-                    String namaBarang = resultSet.getString("nama_barang");
-                    String total = resultSet.getString("total");
-        
-                    tableModel.addRow(new Object[]{tanggal, kodePembelian, namaBarang, namaSupplier, total});
-                }
-            } catch (SQLException e) {
-                e.printStackTrace();
+        try (Connection connection = Dbconnect.getConnect();
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(queryBuilder.toString())) {
+
+            tableModel.setRowCount(0); // Clear existing data
+            while (resultSet.next()) {
+                String tanggal = indonesianDateFormat.format(resultSet.getDate("tanggal"));
+                String kode = resultSet.getString("kode");
+                String namaBarang = resultSet.getString("nama_barang");
+                String namaSupplier = resultSet.getString("nama_supplier");
+                String total = resultSet.getString("total");
+                tableModel.addRow(new Object[]{tanggal, kode, namaBarang, namaSupplier, total});
             }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Terjadi kesalahan pada database: " + e.getMessage());
         }
-        
-        private List<String> getProductNames() {
-            List<String> productNames = new ArrayList<>();
-            String query = "SELECT nama FROM list_produk";
-            try (Connection connection = Dbconnect.getConnect();
-                 Statement statement = connection.createStatement();
-                 ResultSet resultSet = statement.executeQuery(query)) {
-                while (resultSet.next()) {
-                    productNames.add(resultSet.getString("nama"));
-                }
-            } catch (SQLException e) {
-                e.printStackTrace();
+    }
+
+    private void resetFields() {
+        datePickerStart.getModel().setValue(null);
+        datePickerEnd.getModel().setValue(null);
+        searchItemComboBox.setSelectedIndex(0);
+        searchVendorComboBox.setSelectedIndex(0);
+        dateRangeLabel.setText("Tanggal " + indonesianDateFormat.format(new Date()) + " s.d. " + indonesianDateFormat.format(new Date()));
+        tableModel.setRowCount(0);
+    }
+
+    private List<String> getProductNames() {
+        List<String> productNames = new ArrayList<>();
+        String query = "SELECT nama FROM list_produk";
+        try (Connection connection = Dbconnect.getConnect();
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(query)) {
+            while (resultSet.next()) {
+                productNames.add(resultSet.getString("nama"));
             }
-            return productNames;
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
-        
-        private List<String> getSupplierNames() {
-            List<String> supplierNames = new ArrayList<>();
-            String query = "SELECT nama FROM pemasok";
-            try (Connection connection = Dbconnect.getConnect();
-                 Statement statement = connection.createStatement();
-                 ResultSet resultSet = statement.executeQuery(query)) {
-                while (resultSet.next()) {
-                    supplierNames.add(resultSet.getString("nama"));
-                }
-            } catch (SQLException e) {
-                e.printStackTrace();
+        return productNames;
+    }
+
+    private List<String> getSupplierNames() {
+        List<String> supplierNames = new ArrayList<>();
+        String query = "SELECT nama FROM pemasok";
+        try (Connection connection = Dbconnect.getConnect();
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(query)) {
+            while (resultSet.next()) {
+                supplierNames.add(resultSet.getString("nama"));
             }
-            return supplierNames;
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
-        
-        public static void main(String[] args) {
-            new PurchaseReportFrame();
-        }
-    }        
+        return supplierNames;
+    }
+
+    public static void main(String[] args) {
+        new PurchaseReportFrame();
+    }
+}

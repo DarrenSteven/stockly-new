@@ -54,7 +54,7 @@ class PlaceholderTextField extends JTextField {
 public class StockPage extends JFrame {
     private DefaultTableModel tableModel;
     private JTable table;
-    private List<String> productCodes;
+    private List<String> productNames;
 
     public StockPage() {
         setTitle("Stockly - Stock Barang");
@@ -150,7 +150,7 @@ public class StockPage extends JFrame {
     }
 
     private void loadDataFromDatabase() {
-        productCodes = new ArrayList<>();
+        productNames = new ArrayList<>();
         try (Connection conn = Dbconnect.getConnect();
              PreparedStatement pstmt = conn.prepareStatement("SELECT kode, nama, stock, satuan, harga_beli, harga_jual FROM list_produk");
              ResultSet rs = pstmt.executeQuery()) {
@@ -165,7 +165,7 @@ public class StockPage extends JFrame {
                     rs.getDouble("harga_jual")
                 };
                 tableModel.addRow(row);
-                productCodes.add(rs.getString("kode"));
+                productNames.add(rs.getString("nama"));
             }
         } catch (SQLException ex) {
             ex.printStackTrace();
@@ -174,7 +174,7 @@ public class StockPage extends JFrame {
     }
 
     private void showProductSelectionDialog(String action) {
-        String[] productArray = productCodes.toArray(new String[0]);
+        String[] productArray = productNames.toArray(new String[0]);
         String selectedProduct = (String) JOptionPane.showInputDialog(this,
                 "Pilih produk yang ingin " + action.toLowerCase() + ":",
                 action + " Produk",
@@ -184,7 +184,7 @@ public class StockPage extends JFrame {
                 productArray[0]);
 
         if (selectedProduct != null) {
-            int row = findRowByProductCode(selectedProduct);
+            int row = findRowByProductName(selectedProduct);
             if (action.equals("Edit")) {
                 editProduct(row);
             } else if (action.equals("Delete")) {
@@ -193,9 +193,9 @@ public class StockPage extends JFrame {
         }
     }
 
-    private int findRowByProductCode(String productCode) {
+    private int findRowByProductName(String productName) {
         for (int i = 0; i < tableModel.getRowCount(); i++) {
-            if (tableModel.getValueAt(i, 0).equals(productCode)) {
+            if (tableModel.getValueAt(i, 1).equals(productName)) {
                 return i;
             }
         }
@@ -215,6 +215,14 @@ public class StockPage extends JFrame {
 
     private void deleteProduct(int row) {
         String productCode = tableModel.getValueAt(row, 0).toString();
+        String productName = tableModel.getValueAt(row, 1).toString();
+        String productId = getProductIdByCode(productCode);
+
+        if (hasTransactions(productId)) {
+            JOptionPane.showMessageDialog(this, "Produk tidak dapat dihapus karena memiliki transaksi terkait.");
+            return;
+        }
+
         int confirmed = JOptionPane.showConfirmDialog(this, "Apakah Anda yakin ingin menghapus produk ini?", "Konfirmasi Hapus", JOptionPane.YES_NO_OPTION);
         if (confirmed == JOptionPane.YES_OPTION) {
             try (Connection conn = Dbconnect.getConnect();
@@ -234,11 +242,52 @@ public class StockPage extends JFrame {
         }
     }
 
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
-                new StockPage();
+    private boolean hasTransactions(String productId) {
+        try (Connection conn = Dbconnect.getConnect()) {
+            // Check if there are transactions in detail_penjualan
+            try (PreparedStatement pstmt = conn.prepareStatement("SELECT COUNT(*) FROM detail_penjualan WHERE id_produk = ?")) {
+                pstmt.setString(1, productId);
+                try (ResultSet rs = pstmt.executeQuery()) {
+                    if (rs.next() && rs.getInt(1) > 0) {
+                        return true;
+                    }
+                }
             }
-        });
+
+            // Check if there are transactions in detail_pembelian
+            try (PreparedStatement pstmt = conn.prepareStatement("SELECT COUNT(*) FROM detail_pembelian WHERE id_produk = ?")) {
+                pstmt.setString(1, productId);
+                try (ResultSet rs = pstmt.executeQuery()) {
+                    if (rs.next() && rs.getInt(1) > 0) {
+                        return true;
+                    }
+                }
+            }
+
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Terjadi kesalahan pada database: " + ex.getMessage());
+        }
+        return false;
+    }
+
+    private String getProductIdByCode(String productCode) {
+        try (Connection conn = Dbconnect.getConnect();
+             PreparedStatement pstmt = conn.prepareStatement("SELECT id_list_produk FROM list_produk WHERE kode = ?")) {
+            pstmt.setString(1, productCode);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("id_list_produk");
+                }
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Terjadi kesalahan pada database: " + ex.getMessage());
+        }
+        return null;
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> new StockPage());
     }
 }

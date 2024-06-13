@@ -16,6 +16,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Locale;
 
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
@@ -45,6 +46,10 @@ public class StockCardFrame extends JFrame {
     private SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
     private JDatePickerImpl datePickerStart;
     private JDatePickerImpl datePickerEnd;
+    private JLabel dateRangeLabel; // Add reference to dateRangeLabel
+
+    // Indonesian date format
+    private SimpleDateFormat indonesianDateFormat = new SimpleDateFormat("dd MMMM yyyy", new Locale("id", "ID"));
 
     public StockCardFrame() {
         setTitle("Kartu Stock");
@@ -123,9 +128,8 @@ public class StockCardFrame extends JFrame {
         tableTitleLabel.setHorizontalAlignment(SwingConstants.CENTER);
         titleDatePanel.add(tableTitleLabel, BorderLayout.NORTH);
 
-        SimpleDateFormat dateFormat = new SimpleDateFormat("dd-MM-yyyy");
-        String currentDate = dateFormat.format(new Date());
-        JLabel dateRangeLabel = new JLabel("Tanggal " + currentDate + " s.d. " + currentDate);
+        String currentDate = indonesianDateFormat.format(new Date());
+        dateRangeLabel = new JLabel("Tanggal " + currentDate + " s.d. " + currentDate); // Initialize dateRangeLabel
         dateRangeLabel.setHorizontalAlignment(SwingConstants.CENTER);
         titleDatePanel.add(dateRangeLabel, BorderLayout.CENTER);
 
@@ -222,10 +226,13 @@ public class StockCardFrame extends JFrame {
             return;
         }
     
+        // Update dateRangeLabel with selected start and end dates
+        dateRangeLabel.setText("Tanggal " + indonesianDateFormat.format(startDateValue) + " s.d. " + indonesianDateFormat.format(endDateValue));
+    
         try (Connection conn = Dbconnect.getConnect()) {
             // Check if table exists
             if (!tableExists(conn, "riwayat_arus_stok")) {
-                JOptionPane.showMessageDialog(this, "Table 'riwayat_arus_stok' doesn't exist in the database.", "Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Table riwayat_arus_stok tidak ditemukan dalam database.", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
     
@@ -255,13 +262,14 @@ public class StockCardFrame extends JFrame {
     
                     int stock = initialStock;
                     while (rs.next()) {
-                        String date = rs.getString("tanggal");
+                        Date date = rs.getDate("tanggal");
+                        String formattedDate = indonesianDateFormat.format(date);
                         String transactionCode = rs.getString("kode_transaksi");
                         int quantityIn = rs.getString("tipe").equals("masuk") ? rs.getInt("kuantitas") : 0;
                         int quantityOut = rs.getString("tipe").equals("keluar") ? rs.getInt("kuantitas") : 0;
                         stock += quantityIn - quantityOut;
     
-                        tableModel.addRow(new Object[]{date, transactionCode, quantityIn, quantityOut, stock});
+                        tableModel.addRow(new Object[]{formattedDate, transactionCode, quantityIn, quantityOut, stock});
                     }
     
                     // Add final stock row
@@ -273,8 +281,7 @@ public class StockCardFrame extends JFrame {
             JOptionPane.showMessageDialog(this, "Terjadi kesalahan pada database: " + ex.getMessage());
         }
     }
-        
-
+    
     private int calculateInitialStock(Connection conn, String productName, String startDate) throws SQLException {
         String query = "SELECT ks.tipe, ks.kuantitas, lp.stock " +
                        "FROM list_produk lp " +
@@ -317,11 +324,32 @@ public class StockCardFrame extends JFrame {
     }
 
     private void resetFields() {
-        startDateSpinner.setValue(new Date());
-        endDateSpinner.setValue(new Date());
+        // Get current date components
+        Date currentDate = new Date();
+        java.util.Calendar calendar = java.util.Calendar.getInstance();
+        calendar.setTime(currentDate);
+        int year = calendar.get(java.util.Calendar.YEAR);
+        int month = calendar.get(java.util.Calendar.MONTH);
+        int day = calendar.get(java.util.Calendar.DAY_OF_MONTH);
+    
+        // Reset date pickers to the current date
+        datePickerStart.getModel().setDate(year, month, day);
+        datePickerStart.getModel().setSelected(true); // This is needed to trigger the date change event
+    
+        datePickerEnd.getModel().setDate(year, month, day);
+        datePickerEnd.getModel().setSelected(true); // This is needed to trigger the date change event
+    
+        // Reset product combo box to the first item
         productComboBox.setSelectedIndex(0);
+    
+        // Clear the table model
         tableModel.setRowCount(0);
+    
+        // Reset the dateRangeLabel to show the current date
+        String formattedCurrentDate = indonesianDateFormat.format(currentDate);
+        dateRangeLabel.setText("Tanggal " + formattedCurrentDate + " s.d. " + formattedCurrentDate);
     }
+    
 
     public static void main(String[] args) {
         new StockCardFrame();
