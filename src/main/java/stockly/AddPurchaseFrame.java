@@ -17,6 +17,8 @@ public class AddPurchaseFrame extends JFrame {
     private JTextField dateField, idField, qtyField;
     private JComboBox<String> supplierComboBox, itemComboBox;
     private JTextField priceField;
+    private JTextField subtotalTextField;
+    private JTextField totalTextField;
 
     public AddPurchaseFrame() {
         setTitle("Tambah Pembelian");
@@ -124,15 +126,19 @@ public class AddPurchaseFrame extends JFrame {
         JPanel bottomPanel = new JPanel(new BorderLayout());
 
         JPanel subtotalPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+
         JLabel subtotalLabel = new JLabel("Subtotal:");
-        JTextField subtotalTextField = new JTextField("Rp720.000", 10); 
-        subtotalTextField.setEditable(false); 
+        subtotalTextField = new JTextField(10); // Inisialisasi subtotalTextField
+        subtotalTextField.setEditable(false);      
+
         JLabel diskonLabel = new JLabel("Diskon:");
         JTextField diskonTextField = new JTextField("Rp0", 10); 
         diskonTextField.setEditable(false); 
+
         JLabel totalLabel = new JLabel("Total:");
-        JTextField totalTextField = new JTextField("Rp720.000", 10); 
+        totalTextField = new JTextField(10); 
         totalTextField.setEditable(false); 
+
         subtotalPanel.add(subtotalLabel);
         subtotalPanel.add(subtotalTextField);
         subtotalPanel.add(diskonLabel);
@@ -232,7 +238,6 @@ public class AddPurchaseFrame extends JFrame {
         int price = Integer.parseInt(priceField.getText());
         int totalPrice = qty * price;
     
-        int purchaseId = getPurchaseIdByCode(idField.getText());
         int productId = getProductIdByName(selectedItem);
     
         String query = "INSERT INTO temp_detail_pembelian (id_produk, jumlah, total) VALUES (?, ?, ?)";
@@ -240,12 +245,11 @@ public class AddPurchaseFrame extends JFrame {
              PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             preparedStatement.setInt(1, productId);
             preparedStatement.setInt(2, qty);
-            preparedStatement.setInt(3, totalPrice); // Memasukkan nilai total yang sudah dihitung
+            preparedStatement.setInt(3, totalPrice);
             int rowsAffected = preparedStatement.executeUpdate();
             if (rowsAffected > 0) {
                 JOptionPane.showMessageDialog(this, "Barang berhasil ditambahkan ke pembelian.", "Success", JOptionPane.INFORMATION_MESSAGE);
-                // Refresh table data after successful insertion
-                loadTableData();
+                loadTableData(); 
             } else {
                 JOptionPane.showMessageDialog(this, "Gagal menambahkan barang ke pembelian.", "Error", JOptionPane.ERROR_MESSAGE);
             }
@@ -253,7 +257,7 @@ public class AddPurchaseFrame extends JFrame {
             ex.printStackTrace();
             JOptionPane.showMessageDialog(this, "Error saat menambahkan barang ke pembelian: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
-    }
+    }    
 
     private int getProductIdByName(String productName) {
         int productId = -1;
@@ -269,22 +273,6 @@ public class AddPurchaseFrame extends JFrame {
             e.printStackTrace();
         }
         return productId;
-    }
-
-    private int getPurchaseIdByCode(String purchaseCode) {
-        int purchaseId = -1;
-        String query = "SELECT id_pembelian FROM pembelian WHERE kode = ?";
-        try (Connection connection = Dbconnect.getConnect();
-             PreparedStatement preparedStatement = connection.prepareStatement(query)) {
-            preparedStatement.setString(1, purchaseCode);
-            ResultSet resultSet = preparedStatement.executeQuery();
-            if (resultSet.next()) {
-                purchaseId = resultSet.getInt("id_pembelian");
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return purchaseId;
     }
 
     private void savePurchase(String date, String kodeTransaksi, String supplierName) {
@@ -360,25 +348,6 @@ public class AddPurchaseFrame extends JFrame {
         }
         return purchaseId;
     }
-    
-    private void updateDetailPurchaseWithPurchaseId(int purchaseId) {
-        String query = "UPDATE temp_detail_pembelian SET id_pembelian = ? WHERE id_pembelian IS NULL";
-        try (Connection connection = Dbconnect.getConnect();
-             PreparedStatement preparedStatement = connection.prepareStatement(query)) {
-            preparedStatement.setInt(1, purchaseId);
-            int rowsAffected = preparedStatement.executeUpdate();
-            if (rowsAffected > 0) {
-                JOptionPane.showMessageDialog(this, "Data pembelian berhasil di Update.", "Success", JOptionPane.INFORMATION_MESSAGE);
-                loadTableData(); // Refresh table data after successful update
-                dispose(); // Close the AddPurchaseFrame
-            } else {
-                JOptionPane.showMessageDialog(this, "Gagal mengupdate data pembelian.", "Error", JOptionPane.ERROR_MESSAGE);
-            }
-        } catch (SQLException ex) {
-            ex.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Error saat mengupdate data pembelian: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-        }
-    }
 
     private int getSupplierIdByName(String supplierName) {
         int supplierId = -1;
@@ -437,14 +406,33 @@ public class AddPurchaseFrame extends JFrame {
                 String namaBarang = resultSet.getString("nama");
                 int harga = resultSet.getInt("harga_beli");
                 int jumlah = resultSet.getInt("jumlah");
-                int totalHarga = resultSet.getInt("total"); // Ambil nilai total dari database
+                int totalHarga = resultSet.getInt("total");
                 model.addRow(new Object[]{kode, namaBarang, "Rp" + harga, jumlah, "Rp" + totalHarga});
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
-    }
     
+        // Update subtotal
+        int subtotal = calculateSubtotal();
+        subtotalTextField.setText("Rp" + subtotal);
+        totalTextField.setText("Rp" + subtotal);
+    }
+
+    private int calculateSubtotal() {
+        int subtotal = 0;
+        String query = "SELECT SUM(total) AS subtotal FROM temp_detail_pembelian";
+        try (Connection connection = Dbconnect.getConnect();
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(query)) {
+            if (resultSet.next()) {
+                subtotal = resultSet.getInt("subtotal");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return subtotal;
+    }
 
     private String generatePurchaseCode() {
         String lastPurchaseCode = getLastPurchaseCode();
