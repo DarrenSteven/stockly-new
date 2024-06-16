@@ -218,19 +218,6 @@ public class AddPurchaseFrame extends JFrame {
         });
 
         // Listener untuk tombol Batal
-        batalButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                // Tampilkan konfirmasi untuk membatalkan
-                int choice = JOptionPane.showConfirmDialog(AddPurchaseFrame.this, "Anda yakin ingin membatalkan pembelian?", "Konfirmasi", JOptionPane.YES_NO_OPTION);
-                if (choice == JOptionPane.YES_OPTION) {
-                    dispose(); // Tutup frame AddPurchaseFrame
-                }
-            }
-        });
-
-        // Load data dari database ke tabel
-        loadTableData();
     }
 
     private int getProductIdFromTable(int row) {

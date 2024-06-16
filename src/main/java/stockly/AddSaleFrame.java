@@ -162,12 +162,43 @@ public class AddSaleFrame extends JFrame {
         actionButtonPanel.add(batalButton);
         actionButtonPanel.add(simpanButton);
 
-        // // Tambahkan event listener untuk tombol Simpan
         simpanButton.addActionListener(e -> {
             String tanggal = dateField.getText();
             String kodePenjualan = idField.getText();
-            simpanDataKeDatabase(tanggal, kodePenjualan);
+            
+            // Simpan data ke tabel penjualan
+            boolean berhasilDisimpan = simpanDataKeDatabase(tanggal, kodePenjualan);
+            
+            if (berhasilDisimpan) {
+                // Ambil id_penjualan berdasarkan kodePenjualan
+                int idPenjualan = getSalesIdBySalesCode(kodePenjualan);
+                
+                if (idPenjualan != -1) {
+                    // Simpan id_penjualan ke tabel temp_detail_penjualan
+                    String namaProduk = (String) itemComboBox.getSelectedItem();
+                    int barang = getIdProdukByNamaBarang(namaProduk);
+                    int jumlah = Integer.parseInt(qtyField.getText());
+                    simpanIdPenjualanKeDetailPenjualan(idPenjualan, barang, jumlah);
+                    
+                    // Pindahkan data dari temp_detail_penjualan ke detail_penjualan
+                    pindahkanDataKeDetailPenjualan();
+                    
+                    // Kosongkan temp_detail_penjualan
+                    kosongkanTempDetailPenjualan();
+                    
+                    // Refresh tampilan atau operasi lain setelah penyimpanan berhasil
+                    loadDataFromDatabase();
+                    
+                    // Menutup frame AddSaleFrame
+                    dispose();
+                } else {
+                    JOptionPane.showMessageDialog(this, "Kode penjualan tidak ditemukan di database.", "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            } else {
+                JOptionPane.showMessageDialog(this, "Gagal menyimpan data ke database.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
         });
+        
 
         // Tambahkan event listener untuk tombol Tambah
         tambahButton.addActionListener(e -> {
@@ -214,48 +245,103 @@ public class AddSaleFrame extends JFrame {
         return newSaleCode;
     }
 
-    private void simpanDataKeDatabase(String tanggal, String kodePenjualan) {
+    private void pindahkanDataKeDetailPenjualan() {
+        try (Connection connection = Dbconnect.getConnect()) {
+            String insertQuery = "INSERT INTO detail_penjualan (id_penjualan, id_produk, jumlah, diskon) "
+                               + "SELECT id_penjualan, id_produk, jumlah, diskon FROM temp_detail_penjualan";
+            PreparedStatement preparedStatement = connection.prepareStatement(insertQuery);
+            
+            int rowsAffected = preparedStatement.executeUpdate();
+            if (rowsAffected > 0) {
+                JOptionPane.showMessageDialog(this, "Data berhasil dipindahkan ke tabel detail penjualan.", "Sukses", JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(this, "Gagal memindahkan data ke tabel detail penjualan.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Terjadi kesalahan saat memindahkan data ke tabel detail penjualan.", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    
+    private void kosongkanTempDetailPenjualan() {
+        try (Connection connection = Dbconnect.getConnect()) {
+            String deleteQuery = "DELETE FROM temp_detail_penjualan";
+            PreparedStatement preparedStatement = connection.prepareStatement(deleteQuery);
+            
+            int rowsAffected = preparedStatement.executeUpdate();
+            if (rowsAffected > 0) {
+                JOptionPane.showMessageDialog(this, "Data berhasil dihapus dari temp_detail_penjualan.", "Sukses", JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(this, "Gagal menghapus data dari temp_detail_penjualan.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Terjadi kesalahan saat menghapus data dari temp_detail_penjualan.", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private boolean simpanDataKeDatabase(String tanggal, String kodePenjualan) {
         try (Connection connection = Dbconnect.getConnect()) {
             String insertQuery = "INSERT INTO penjualan (kode, tanggal) VALUES (?, ?)";
             PreparedStatement preparedStatement = connection.prepareStatement(insertQuery);
             preparedStatement.setString(1, kodePenjualan);
             preparedStatement.setString(2, tanggal);
+            
             int rowsAffected = preparedStatement.executeUpdate();
             if (rowsAffected > 0) {
-                JOptionPane.showMessageDialog(this, "Data berhasil disimpan ke database.", "Sukses", JOptionPane.INFORMATION_MESSAGE);
-                loadDataFromDatabase(); // Memanggil metode loadDataFromDatabase() untuk refresh tampilan
+                JOptionPane.showMessageDialog(this, "Data penjualan berhasil disimpan ke database.", "Sukses", JOptionPane.INFORMATION_MESSAGE);
+                return true;
             } else {
-                JOptionPane.showMessageDialog(this, "Gagal menyimpan data ke database.", "Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Gagal menyimpan data penjualan ke database.", "Error", JOptionPane.ERROR_MESSAGE);
+                return false;
             }
         } catch (SQLException ex) {
             ex.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Terjadi kesalahan saat menyimpan data ke database.", "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Terjadi kesalahan saat menyimpan data penjualan ke database.", "Error", JOptionPane.ERROR_MESSAGE);
+            return false;
         }
     }
+
+    private void simpanIdPenjualanKeDetailPenjualan(int id_penjualan, int barang, int jumlah) {
+        try (Connection connection = Dbconnect.getConnect()) {
+            String updateQuery = "UPDATE temp_detail_penjualan SET id_penjualan = ? WHERE id_penjualan IS NULL";
+            PreparedStatement preparedStatement = connection.prepareStatement(updateQuery);
+            preparedStatement.setInt(1, id_penjualan);
+            
+            int rowsAffected = preparedStatement.executeUpdate();
+            if (rowsAffected > 0) {
+                JOptionPane.showMessageDialog(this, "ID penjualan berhasil disimpan ke tabel detail penjualan.", "Sukses", JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(this, "Gagal menyimpan ID penjualan ke tabel detail penjualan.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Terjadi kesalahan saat menyimpan ID penjualan ke tabel detail penjualan.", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    
 
     private void simpanDetailPenjualanKeDatabase(int id_penjualan, int barang, int jumlah) {
-        System.out.println(id_penjualan);
-        System.out.println(barang);
-        System.out.println(jumlah);
         try (Connection connection = Dbconnect.getConnect()) {
-            String insertQuery = "INSERT INTO temp_detail_penjualan (id_produk, jumlah, diskon) VALUES (?, ?, ?)";
+            String insertQuery = "INSERT INTO temp_detail_penjualan (id_penjualan, id_produk, jumlah, diskon) VALUES (?, ?, ?, ?)";
             PreparedStatement preparedStatement = connection.prepareStatement(insertQuery);
-        
-            preparedStatement.setInt(1, barang);
-            preparedStatement.setInt(2, jumlah);
-            preparedStatement.setInt(3, 0);
+            preparedStatement.setNull(1, java.sql.Types.INTEGER); // id_penjualan diset null
+            preparedStatement.setInt(2, barang);
+            preparedStatement.setInt(3, jumlah);
+            preparedStatement.setInt(4, 0);
+            
             int rowsAffected = preparedStatement.executeUpdate();
             if (rowsAffected > 0) {
-                JOptionPane.showMessageDialog(this, "Data berhasil disimpan ke database.", "Sukses", JOptionPane.INFORMATION_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Data detail penjualan berhasil disimpan ke database.", "Sukses", JOptionPane.INFORMATION_MESSAGE);
             } else {
-                JOptionPane.showMessageDialog(this, "Gagal menyimpan data ke database.", "Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Gagal menyimpan data detail penjualan ke database.", "Error", JOptionPane.ERROR_MESSAGE);
             }
         } catch (SQLException ex) {
             ex.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Terjadi kesalahan saat menyimpan data ke database.", "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Terjadi kesalahan saat menyimpan data detail penjualan ke database.", "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
-
+    
     private int getIdProdukByNamaBarang(String barang) {
         try (Connection connection = Dbconnect.getConnect()) {
             String query = "SELECT id_list_produk FROM list_produk WHERE nama = ?";
