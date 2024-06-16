@@ -35,7 +35,7 @@ public class Sidebar extends JPanel {
         logoPanel.add(stocklyLabel);
 
         JButton[] navigationButtons = new JButton[6];
-        String[] buttonLabels = {"List Produk", "List Pembelian", "List Penjualan", "Laporan Penjualan", "Laporan Pembelian", "Kartu Stock"};
+        String[] buttonLabels = {"List Produk", "List Pembelian", "List Penjualan", "Laporan Pembelian", "Laporan Penjualan", "Kartu Stock"};
         ImageIcon[] buttonIcons = {new ImageIcon("assets/list_produk.png"), new ImageIcon("assets/pembelian.png"), new ImageIcon("assets/penjualan.png"), new ImageIcon("assets/laporan_jual.png"), new ImageIcon("assets/laporan_beli.png"), new ImageIcon("assets/stock.png")};
 
         JPanel navigationPanel = new JPanel();
@@ -58,14 +58,14 @@ public class Sidebar extends JPanel {
                     case "List Penjualan":
                         new SalesListPage().setVisible(true);
                         break;
-                    case "Kartu Stock":
-                        new StockCardFrame().setVisible(true);
-                        break;
                     case "Laporan Pembelian":
                         new PurchaseReportFrame().setVisible(true);
                         break;
                     case "Laporan Penjualan":
                         new SalesReportFrame().setVisible(true);
+                        break;
+                    case "Kartu Stock":
+                        new StockCardFrame().setVisible(true);
                         break;
                 }
                 

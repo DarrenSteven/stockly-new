@@ -8,12 +8,9 @@ import javax.swing.table.TableColumn;
 import javax.swing.RowFilter;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.TableRowSorter;
-import javax.swing.table.TableCellRenderer;
-import javax.swing.table.TableCellEditor;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.EventObject;
 
 public class PurchaseListPage extends JFrame {
     
@@ -50,7 +47,7 @@ public class PurchaseListPage extends JFrame {
         titleSearchPanel.add(searchBar, BorderLayout.SOUTH);
         contentPanel.add(titleSearchPanel, BorderLayout.NORTH);
 
-        String[] columnNames = {"Nomor", "Kode Pembelian", "Tanggal Pembelian", "Nama Pemasok", "Aksi"};
+        String[] columnNames = {"Nomor", "Kode Pembelian", "Tanggal Pembelian", "Nama Pemasok"};
         model = new DefaultTableModel(columnNames, 0);
         table = new JTable(model);
         table.setRowHeight(40);
@@ -59,15 +56,9 @@ public class PurchaseListPage extends JFrame {
         centerRenderer.setHorizontalAlignment(JLabel.CENTER);
         table.setDefaultRenderer(Object.class, centerRenderer);
 
-        table.getColumnModel().getColumn(4).setCellRenderer(new ButtonRenderer());
-        table.getColumnModel().getColumn(4).setCellEditor(new ButtonEditor(new JCheckBox()));
-
         // Mengatur lebar kolom
         TableColumn column = table.getColumnModel().getColumn(0); // Kolom Nomor
         column.setPreferredWidth(50);
-
-        column = table.getColumnModel().getColumn(4); // Kolom Aksi
-        column.setPreferredWidth(200);
 
         JScrollPane scrollPane = new JScrollPane(table);
         contentPanel.add(scrollPane, BorderLayout.CENTER);
@@ -81,13 +72,59 @@ public class PurchaseListPage extends JFrame {
         });
 
         JButton addButton = new JButton("Tambah Pembelian");
+        JButton detailButton = new JButton("Detail");
+        JButton editButton = new JButton("Edit");
+        JButton deleteButton = new JButton("Hapus");
+
         addButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 new AddPurchaseFrame();
             }
         });
+
+        detailButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                int selectedRow = table.getSelectedRow();
+                if (selectedRow != -1) {
+                    System.out.println("Detail button clicked for row " + selectedRow);
+                    // Implement detail action here
+                } else {
+                    JOptionPane.showMessageDialog(null, "Pilih baris yang ingin dilihat detailnya.");
+                }
+            }
+        });
+
+        editButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                int selectedRow = table.getSelectedRow();
+                if (selectedRow != -1) {
+                    System.out.println("Edit button clicked for row " + selectedRow);
+                    // Implement edit action here
+                } else {
+                    JOptionPane.showMessageDialog(null, "Pilih baris yang ingin di edit.");
+                }
+            }
+        });
+
+        deleteButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                int selectedRow = table.getSelectedRow();
+                if (selectedRow != -1) {
+                    deletePurchase(selectedRow);
+                } else {
+                    JOptionPane.showMessageDialog(null, "Pilih baris yang ingin dihapus.");
+                }
+            }
+        });
+
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        buttonPanel.add(detailButton);
+        buttonPanel.add(editButton);
+        buttonPanel.add(deleteButton);
         buttonPanel.add(addButton);
         contentPanel.add(buttonPanel, BorderLayout.SOUTH);
 
@@ -112,8 +149,7 @@ public class PurchaseListPage extends JFrame {
                             rs.getString("id_pembelian"),
                             rs.getString("kode"),
                             rs.getString("tanggal"),
-                            rs.getString("nama_pemasok"),
-                            ""
+                            rs.getString("nama_pemasok")
                     };
                     model.addRow(row);
                 }
@@ -131,75 +167,37 @@ public class PurchaseListPage extends JFrame {
         sorter.setRowFilter(rowFilter);
     }
 
+    public void deletePurchase(int row) {
+        String idPembelian = model.getValueAt(row, 0).toString();
+        System.out.println("Deleting purchase with id: " + idPembelian);  // Debug: Print id_pembelian
+
+        try (Connection connection = Dbconnect.getConnect()) {
+            // Delete from detail_pembelian
+            String deleteDetailQuery = "DELETE FROM detail_pembelian WHERE id_pembelian = ?";
+            try (PreparedStatement psDetail = connection.prepareStatement(deleteDetailQuery)) {
+                psDetail.setString(1, idPembelian);
+                int detailRowsDeleted = psDetail.executeUpdate();
+                System.out.println("Deleted from detail_pembelian: " + detailRowsDeleted + " rows");  // Debug: Print rows deleted
+            }
+
+            // Delete from pembelian
+            String deletePurchaseQuery = "DELETE FROM pembelian WHERE id_pembelian = ?";
+            try (PreparedStatement psPurchase = connection.prepareStatement(deletePurchaseQuery)) {
+                psPurchase.setString(1, idPembelian);
+                int purchaseRowsDeleted = psPurchase.executeUpdate();
+                System.out.println("Deleted from pembelian: " + purchaseRowsDeleted + " rows");  // Debug: Print rows deleted
+            }
+
+            // Remove row from table model
+            model.removeRow(row);
+            JOptionPane.showMessageDialog(this, "Data berhasil dihapus.", "Sukses", JOptionPane.INFORMATION_MESSAGE);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Error deleting data from database.", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
     public static void main(String[] args) {
         new PurchaseListPage();
-    }
-}
-
-class ButtonRenderer extends JPanel implements TableCellRenderer {
-
-    public ButtonRenderer() {
-        setLayout(new FlowLayout(FlowLayout.CENTER, 5, 5));
-        add(new JButton("Detail"));
-        add(new JButton("Edit"));
-        add(new JButton("Hapus"));
-    }
-
-    @Override
-    public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-        return this;
-    }
-}
-
-class ButtonEditor extends AbstractCellEditor implements TableCellEditor, ActionListener {
-
-    private JPanel panel;
-    private JButton detailButton;
-    private JButton editButton;
-    private JButton deleteButton;
-    private String label;
-
-    public ButtonEditor(JCheckBox checkBox) {
-        panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 5));
-
-        detailButton = new JButton("Detail");
-        editButton = new JButton("Edit");
-        deleteButton = new JButton("Hapus");
-
-        detailButton.addActionListener(this);
-        editButton.addActionListener(this);
-        deleteButton.addActionListener(this);
-
-        panel.add(detailButton);
-        panel.add(editButton);
-        panel.add(deleteButton);
-    }
-
-    @Override
-    public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
-        return panel;
-    }
-
-    @Override
-    public Object getCellEditorValue() {
-        return label;
-    }
-
-    @Override
-    public boolean stopCellEditing() {
-        return super.stopCellEditing();
-    }
-
-    @Override
-    public void actionPerformed(ActionEvent e) {
-        fireEditingStopped();
-        // Implement your button action here
-        if (e.getSource() == detailButton) {
-            System.out.println("Detail button clicked");
-        } else if (e.getSource() == editButton) {
-            System.out.println("Edit button clicked");
-        } else if (e.getSource() == deleteButton) {
-            System.out.println("Delete button clicked");
-        }
     }
 }

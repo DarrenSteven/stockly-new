@@ -198,8 +198,64 @@ public class AddPurchaseFrame extends JFrame {
             }
         });
 
+        // Listener untuk tombol Hapus
+        hapusButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                // Dapatkan baris yang dipilih
+                int selectedRow = table.getSelectedRow();
+                if (selectedRow == -1) {
+                    JOptionPane.showMessageDialog(AddPurchaseFrame.this, "Pilih baris yang ingin dihapus.", "Peringatan", JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+
+                // Dapatkan id_produk dari baris yang dipilih
+                int productId = getProductIdFromTable(selectedRow);
+
+                // Hapus data dari temp_detail_pembelian
+                deleteItemFromPurchase(productId);
+            }
+        });
+
+        // Listener untuk tombol Batal
+        batalButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                // Tampilkan konfirmasi untuk membatalkan
+                int choice = JOptionPane.showConfirmDialog(AddPurchaseFrame.this, "Anda yakin ingin membatalkan pembelian?", "Konfirmasi", JOptionPane.YES_NO_OPTION);
+                if (choice == JOptionPane.YES_OPTION) {
+                    dispose(); // Tutup frame AddPurchaseFrame
+                }
+            }
+        });
+
         // Load data dari database ke tabel
         loadTableData();
+    }
+
+    private int getProductIdFromTable(int row) {
+        DefaultTableModel model = (DefaultTableModel) table.getModel();
+        String productName = (String) model.getValueAt(row, 1); // Nama barang ada di kolom indeks 1
+        return getProductIdByName(productName);
+    }
+    
+    // Method untuk menghapus item dari temp_detail_pembelian
+    private void deleteItemFromPurchase(int productId) {
+        String deleteQuery = "DELETE FROM temp_detail_pembelian WHERE id_produk = ?";
+        try (Connection connection = Dbconnect.getConnect();
+             PreparedStatement preparedStatement = connection.prepareStatement(deleteQuery)) {
+            preparedStatement.setInt(1, productId);
+            int rowsDeleted = preparedStatement.executeUpdate();
+            if (rowsDeleted > 0) {
+                JOptionPane.showMessageDialog(this, "Item berhasil dihapus dari pembelian.", "Success", JOptionPane.INFORMATION_MESSAGE);
+                loadTableData(); // Refresh tabel setelah penghapusan berhasil
+            } else {
+                JOptionPane.showMessageDialog(this, "Gagal menghapus item dari pembelian.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Error saat menghapus item dari pembelian: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private List<String> getSupplierNames() {
