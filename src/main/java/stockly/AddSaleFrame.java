@@ -56,6 +56,8 @@ public class AddSaleFrame extends JFrame {
         dateField = new JTextField(15);
         JLabel idLabel = new JLabel("Kode Penjualan:");
         idField = new JTextField(15);
+        idField.setText(generateSaleCode()); // Generate and set the sale code
+        idField.setEditable(false); // Make the sale code field non-editable
         JLabel customerLabel = new JLabel("Customer:");
         JTextField customerField = new JTextField("Cash");
         customerField.setEditable(false);
@@ -80,7 +82,8 @@ public class AddSaleFrame extends JFrame {
         JLabel priceLabel = new JLabel("Harga:");
         priceField = new JTextField(5);
         priceField.setEnabled(false);
-      // Tambahkan event listener untuk itemComboBox
+        
+        // Tambahkan event listener untuk itemComboBox
         itemComboBox.addActionListener(e -> {
             String selectedItem = (String) itemComboBox.getSelectedItem();
             // Ambil harga produk berdasarkan nama produk yang dipilih
@@ -89,8 +92,6 @@ public class AddSaleFrame extends JFrame {
             priceField.setText(productPrice);
         });
 
-      
-    
         itemPanel.add(itemLabel);
         itemPanel.add(itemComboBox);
         itemPanel.add(qtyLabel);
@@ -161,7 +162,7 @@ public class AddSaleFrame extends JFrame {
         actionButtonPanel.add(batalButton);
         actionButtonPanel.add(simpanButton);
 
-        // Tambahkan event listener untuk tombol Simpan
+        // // Tambahkan event listener untuk tombol Simpan
         simpanButton.addActionListener(e -> {
             String tanggal = dateField.getText();
             String kodePenjualan = idField.getText();
@@ -179,7 +180,6 @@ public class AddSaleFrame extends JFrame {
             loadDataFromDatabase();
         });
         
-
         bottomPanel.add(actionButtonPanel, BorderLayout.SOUTH);
 
         contentPanel.add(bottomPanel, BorderLayout.SOUTH);
@@ -191,6 +191,27 @@ public class AddSaleFrame extends JFrame {
 
         // Load data from database
         loadDataFromDatabase();
+    }
+
+    private String generateSaleCode() {
+        String saleCodePrefix = "PJ";
+        String newSaleCode = saleCodePrefix + "001"; // Default code if no previous code found
+
+        try (Connection connection = Dbconnect.getConnect()) {
+            String query = "SELECT kode FROM penjualan ORDER BY kode DESC LIMIT 1";
+            PreparedStatement statement = connection.prepareStatement(query);
+            ResultSet resultSet = statement.executeQuery();
+
+            if (resultSet.next()) {
+                String lastSaleCode = resultSet.getString("kode");
+                int lastSaleNumber = Integer.parseInt(lastSaleCode.replace(saleCodePrefix, ""));
+                newSaleCode = saleCodePrefix + String.format("%03d", lastSaleNumber + 1);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return newSaleCode;
     }
 
     private void simpanDataKeDatabase(String tanggal, String kodePenjualan) {
@@ -211,19 +232,18 @@ public class AddSaleFrame extends JFrame {
             JOptionPane.showMessageDialog(this, "Terjadi kesalahan saat menyimpan data ke database.", "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
-    
 
     private void simpanDetailPenjualanKeDatabase(int id_penjualan, int barang, int jumlah) {
         System.out.println(id_penjualan);
         System.out.println(barang);
         System.out.println(jumlah);
         try (Connection connection = Dbconnect.getConnect()) {
-            String insertQuery = "INSERT INTO detail_penjualan (id_penjualan, id_produk, jumlah, diskon) VALUES (?,?, ?, ?)";
+            String insertQuery = "INSERT INTO temp_detail_penjualan (id_produk, jumlah, diskon) VALUES (?, ?, ?)";
             PreparedStatement preparedStatement = connection.prepareStatement(insertQuery);
-            preparedStatement.setInt(1, id_penjualan);
-            preparedStatement.setInt(2, barang);
-            preparedStatement.setInt(3, jumlah);
-            preparedStatement.setInt(4, 0);
+        
+            preparedStatement.setInt(1, barang);
+            preparedStatement.setInt(2, jumlah);
+            preparedStatement.setInt(3, 0);
             int rowsAffected = preparedStatement.executeUpdate();
             if (rowsAffected > 0) {
                 JOptionPane.showMessageDialog(this, "Data berhasil disimpan ke database.", "Sukses", JOptionPane.INFORMATION_MESSAGE);
@@ -268,7 +288,7 @@ public class AddSaleFrame extends JFrame {
                 products.add(new Product(id, kode, nama, harga));
             }
 
-            String salesQuery = "SELECT id_produk, jumlah FROM detail_penjualan";
+            String salesQuery = "SELECT id_produk, jumlah FROM temp_detail_penjualan";
             ResultSet salesResultSet = statement.executeQuery(salesQuery);
 
             while (salesResultSet.next()) {
@@ -300,8 +320,6 @@ public class AddSaleFrame extends JFrame {
         }
         return salesId;
     }
-
-
 
     private String getProductPriceByProductName(String name) {
         String salesQuery = "SELECT harga_jual FROM list_produk WHERE nama = ?";
