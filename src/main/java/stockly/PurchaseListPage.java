@@ -5,7 +5,6 @@ import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableColumn;
-import javax.swing.RowFilter;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.TableRowSorter;
 import java.awt.*;
@@ -71,7 +70,7 @@ public class PurchaseListPage extends JFrame {
             }
         });
 
-        JButton addButton = new JButton("Tambah Pembelian");
+        JButton addButton = new JButton("Tambah");
         JButton detailButton = new JButton("Detail");
         JButton editButton = new JButton("Edit");
         JButton deleteButton = new JButton("Hapus");
@@ -101,8 +100,9 @@ public class PurchaseListPage extends JFrame {
             public void actionPerformed(ActionEvent e) {
                 int selectedRow = table.getSelectedRow();
                 if (selectedRow != -1) {
-                    System.out.println("Edit button clicked for row " + selectedRow);
-                    // Implement edit action here
+                    int purchaseId = Integer.parseInt(model.getValueAt(selectedRow, 0).toString());
+                    EditPurchaseFrame editFrame = new EditPurchaseFrame(purchaseId);
+                    editFrame.setVisible(true);
                 } else {
                     JOptionPane.showMessageDialog(null, "Pilih baris yang ingin di edit.");
                 }
@@ -122,7 +122,7 @@ public class PurchaseListPage extends JFrame {
         });
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        buttonPanel.add(detailButton);
+        // buttonPanel.add(detailButton);
         buttonPanel.add(editButton);
         buttonPanel.add(deleteButton);
         buttonPanel.add(addButton);
@@ -167,33 +167,40 @@ public class PurchaseListPage extends JFrame {
         sorter.setRowFilter(rowFilter);
     }
 
-    public void deletePurchase(int row) {
+    private void deletePurchase(int row) {
         String idPembelian = model.getValueAt(row, 0).toString();
-        System.out.println("Deleting purchase with id: " + idPembelian);  // Debug: Print id_pembelian
+        if (JOptionPane.showConfirmDialog(this, "Apakah Anda yakin ingin menghapus pembelian ini?", "Konfirmasi", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
+            try (Connection connection = Dbconnect.getConnect()) {
+                connection.setAutoCommit(false);  // Start transaction
 
-        try (Connection connection = Dbconnect.getConnect()) {
-            // Delete from detail_pembelian
-            String deleteDetailQuery = "DELETE FROM detail_pembelian WHERE id_pembelian = ?";
-            try (PreparedStatement psDetail = connection.prepareStatement(deleteDetailQuery)) {
-                psDetail.setString(1, idPembelian);
-                int detailRowsDeleted = psDetail.executeUpdate();
-                System.out.println("Deleted from detail_pembelian: " + detailRowsDeleted + " rows");  // Debug: Print rows deleted
+                // Delete from detail_pembelian
+                String deleteDetailQuery = "DELETE FROM detail_pembelian WHERE id_pembelian = ?";
+                try (PreparedStatement psDetail = connection.prepareStatement(deleteDetailQuery)) {
+                    psDetail.setString(1, idPembelian);
+                    psDetail.executeUpdate();
+                }
+
+                // Delete from pembelian
+                String deletePurchaseQuery = "DELETE FROM pembelian WHERE id_pembelian = ?";
+                try (PreparedStatement psPurchase = connection.prepareStatement(deletePurchaseQuery)) {
+                    psPurchase.setString(1, idPembelian);
+                    psPurchase.executeUpdate();
+                }
+
+                connection.commit();  // Commit transaction
+
+                // Remove row from table model
+                model.removeRow(row);
+                JOptionPane.showMessageDialog(this, "Data berhasil dihapus.", "Sukses", JOptionPane.INFORMATION_MESSAGE);
+            } catch (SQLException e) {
+                e.printStackTrace();
+                JOptionPane.showMessageDialog(this, "Error deleting data from database.", "Error", JOptionPane.ERROR_MESSAGE);
+                try (Connection connection = Dbconnect.getConnect()) {
+                    connection.rollback();  // Rollback transaction on error
+                } catch (SQLException rollbackEx) {
+                    rollbackEx.printStackTrace();
+                }
             }
-
-            // Delete from pembelian
-            String deletePurchaseQuery = "DELETE FROM pembelian WHERE id_pembelian = ?";
-            try (PreparedStatement psPurchase = connection.prepareStatement(deletePurchaseQuery)) {
-                psPurchase.setString(1, idPembelian);
-                int purchaseRowsDeleted = psPurchase.executeUpdate();
-                System.out.println("Deleted from pembelian: " + purchaseRowsDeleted + " rows");  // Debug: Print rows deleted
-            }
-
-            // Remove row from table model
-            model.removeRow(row);
-            JOptionPane.showMessageDialog(this, "Data berhasil dihapus.", "Sukses", JOptionPane.INFORMATION_MESSAGE);
-        } catch (SQLException e) {
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Error deleting data from database.", "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 

@@ -25,8 +25,10 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
+import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 
 class PlaceholderTextField extends JTextField {
@@ -101,21 +103,19 @@ public class StockPage extends JFrame {
             }
         };
 
+        // Set alignment to center for all columns
+        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
+        centerRenderer.setHorizontalAlignment(DefaultTableCellRenderer.CENTER);
+        for (int i = 0; i < table.getColumnCount(); i++) {
+            table.getColumnModel().getColumn(i).setCellRenderer(centerRenderer);
+        }
+
         JScrollPane scrollPane = new JScrollPane(table);
         contentPanel.add(scrollPane, BorderLayout.CENTER);
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-
-        JButton addButton = new JButton("Tambah Produk");
-        addButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                new AddProductFrame(StockPage.this);  // Pass reference of StockPage
-            }
-        });
-        buttonPanel.add(addButton);
-
-        JButton editButton = new JButton("Edit Produk");
+        
+        JButton editButton = new JButton("Edit");
         editButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -124,7 +124,7 @@ public class StockPage extends JFrame {
         });
         buttonPanel.add(editButton);
 
-        JButton deleteButton = new JButton("Hapus Produk");
+        JButton deleteButton = new JButton("Hapus");
         deleteButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -132,6 +132,15 @@ public class StockPage extends JFrame {
             }
         });
         buttonPanel.add(deleteButton);
+
+        JButton addButton = new JButton("Tambah");
+        addButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                new AddProductFrame(StockPage.this);  // Pass reference of StockPage
+            }
+        });
+        buttonPanel.add(addButton);
 
         contentPanel.add(buttonPanel, BorderLayout.SOUTH);
 

@@ -65,7 +65,7 @@ public class SalesListPage extends JFrame {
         JScrollPane scrollPane = new JScrollPane(table);
         contentPanel.add(scrollPane, BorderLayout.CENTER);
 
-        JButton addButton = new JButton("Tambah Penjualan");
+        JButton addButton = new JButton("Tambah");
         addButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -78,7 +78,7 @@ public class SalesListPage extends JFrame {
         deleteComboBox.setPreferredSize(new Dimension(200, 30));
 
         // Create edit button
-        JButton editButton = new JButton("Edit Penjualan");
+        JButton editButton = new JButton("Edit");
         editButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -87,7 +87,7 @@ public class SalesListPage extends JFrame {
         });
 
         // Create delete button
-        JButton deleteButton = new JButton("Hapus Penjualan");
+        JButton deleteButton = new JButton("Hapus");
         deleteButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -96,9 +96,9 @@ public class SalesListPage extends JFrame {
         });
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        buttonPanel.add(addButton);
         buttonPanel.add(editButton);
         buttonPanel.add(deleteButton);
+        buttonPanel.add(addButton);
         contentPanel.add(buttonPanel, BorderLayout.SOUTH);
 
         mainPanel.add(contentPanel, BorderLayout.CENTER);
