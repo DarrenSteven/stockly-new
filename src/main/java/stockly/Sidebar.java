@@ -1,163 +1,170 @@
 package stockly;
 
 import javax.swing.*;
+import javax.swing.border.*;
 import java.awt.*;
-import javax.swing.border.Border;
-import javax.swing.border.CompoundBorder;
-import javax.swing.border.EmptyBorder;
-import javax.swing.border.LineBorder;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
+import java.awt.event.*;
 
 public class Sidebar extends JPanel {
     private JFrame currentPage;
 
     public Sidebar() {
         setPreferredSize(new Dimension(250, getHeight()));
-        setBackground(Color.WHITE); // Set background to white
+        setBackground(Color.WHITE);
+        setLayout(new BorderLayout());
 
-        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+        JPanel logoPanel = createLogoPanel();
+        JPanel navigationPanel = createNavigationPanel();
+        JPanel logoutPanel = createLogoutPanel();
 
+        add(logoPanel, BorderLayout.NORTH);
+        add(navigationPanel, BorderLayout.CENTER);
+        add(logoutPanel, BorderLayout.SOUTH);
+    }
+
+    private JPanel createLogoPanel() {
+        JPanel logoPanel = new JPanel(new GridBagLayout());
+        logoPanel.setBackground(Color.WHITE);
+        logoPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+    
+        // Mendefinisikan GridBagConstraints untuk label dan ikon
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.anchor = GridBagConstraints.CENTER;
+        gbc.insets = new Insets(0, 0, 10, 0); // Memberikan ruang di bawah label
+    
         ImageIcon logoIcon = new ImageIcon("assets/stockly.png");
-        Image logoImage = logoIcon.getImage();
-        Image scaledLogoImage = logoImage.getScaledInstance(40, 40, Image.SCALE_SMOOTH);
+        Image scaledLogoImage = logoIcon.getImage().getScaledInstance(40, 40, Image.SCALE_SMOOTH);
         ImageIcon scaledLogoIcon = new ImageIcon(scaledLogoImage);
         JLabel logoLabel = new JLabel(scaledLogoIcon);
+    
+        logoPanel.add(logoLabel, gbc); // Menambahkan logo ke panel
+    
+        gbc.gridy++; // Pindah ke baris berikutnya untuk label "Stockly"
         JLabel stocklyLabel = new JLabel("Stockly");
         stocklyLabel.setFont(new Font("Arial", Font.BOLD, 24));
-        stocklyLabel.setForeground(new Color(0, 123, 255)); // Blue text color
-        JPanel logoPanel = new JPanel();
-        logoPanel.setBackground(Color.WHITE); // White background
-        logoPanel.setPreferredSize(new Dimension(250, 150));
-        logoPanel.add(logoLabel);
-        logoPanel.add(stocklyLabel);
+        stocklyLabel.setForeground(new Color(0, 123, 255)); // Warna teks biru
+        logoPanel.add(stocklyLabel, gbc); // Menambahkan label "Stockly" ke panel
+    
+        return logoPanel;
+    }
+    
 
-        JButton[] navigationButtons = new JButton[6];
-        String[] buttonLabels = {"List Produk", "List Pembelian", "List Penjualan", "Laporan Pembelian", "Laporan Penjualan", "Kartu Stock"};
-        ImageIcon[] buttonIcons = {new ImageIcon("assets/list_produk.png"), new ImageIcon("assets/pembelian.png"), new ImageIcon("assets/penjualan.png"), new ImageIcon("assets/laporan_jual.png"), new ImageIcon("assets/laporan_beli.png"), new ImageIcon("assets/stock.png")};
-
-        JPanel navigationPanel = new JPanel();
+    private JPanel createNavigationPanel() {
+        JPanel navigationPanel = new JPanel(new GridBagLayout());
         navigationPanel.setBackground(Color.WHITE);
-        navigationPanel.setLayout(new GridLayout(6, 1));
-        navigationPanel.setPreferredSize(new Dimension(250, 300));
-
-        ActionListener navigationListener = new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                JButton button = (JButton) e.getSource();
-                String buttonText = button.getText();
-                switch (buttonText) {
-                    case "List Produk":
-                        new StockPage().setVisible(true);
-                        break;
-                    case "List Pembelian":
-                        new PurchaseListPage().setVisible(true);
-                        break;
-                    case "List Penjualan":
-                        new SalesListPage().setVisible(true);
-                        break;
-                    case "Laporan Pembelian":
-                        new PurchaseReportFrame().setVisible(true);
-                        break;
-                    case "Laporan Penjualan":
-                        new SalesReportFrame().setVisible(true);
-                        break;
-                    case "Kartu Stock":
-                        new StockCardFrame().setVisible(true);
-                        break;
-                }
-                
-                SwingUtilities.getWindowAncestor(Sidebar.this).dispose();
-            }
+        navigationPanel.setBorder(new EmptyBorder(10, 10, 10, 10)); // Memberikan padding pada panel
+    
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+    
+        String[] buttonLabels = {"List Produk", "List Pembelian", "List Penjualan", "Laporan Pembelian", "Laporan Penjualan", "Kartu Stock"};
+        ImageIcon[] buttonIcons = {
+            new ImageIcon("assets/list_produk.png"),
+            new ImageIcon("assets/pembelian.png"),
+            new ImageIcon("assets/penjualan.png"),
+            new ImageIcon("assets/laporan_jual.png"),
+            new ImageIcon("assets/laporan_beli.png"),
+            new ImageIcon("assets/stock.png")
         };
-
-        for (int i = 0; i < 6; i++) {
-            navigationButtons[i] = new JButton(buttonLabels[i], buttonIcons[i]);
-            navigationButtons[i].setFont(new Font("Arial", Font.PLAIN, 14));
-            navigationButtons[i].setHorizontalAlignment(SwingConstants.LEFT);
-            navigationButtons[i].setIconTextGap(10);
-            navigationButtons[i].setBackground(Color.WHITE); // White button background
-            navigationButtons[i].setForeground(Color.BLACK); // Black text color
-            navigationButtons[i].setBorder(createRoundedBorder()); // Rounded border with white grid
-            navigationButtons[i].setFocusPainted(false); // Remove focus border
-            navigationButtons[i].addActionListener(navigationListener);
-            addHoverEffect(navigationButtons[i]); // Add hover effect
-            navigationPanel.add(navigationButtons[i]);
+    
+        ActionListener navigationListener = e -> {
+            JButton button = (JButton) e.getSource();
+            String buttonText = button.getText();
+            switch (buttonText) {
+                case "List Produk":
+                    new StockPage().setVisible(true);
+                    break;
+                case "List Pembelian":
+                    new PurchaseListPage().setVisible(true);
+                    break;
+                case "List Penjualan":
+                    new SalesListPage().setVisible(true);
+                    break;
+                case "Laporan Pembelian":
+                    new PurchaseReportFrame().setVisible(true);
+                    break;
+                case "Laporan Penjualan":
+                    new SalesReportFrame().setVisible(true);
+                    break;
+                case "Kartu Stock":
+                    new StockCardFrame().setVisible(true);
+                    break;
+            }
+            SwingUtilities.getWindowAncestor(Sidebar.this).dispose();
+        };
+    
+        for (int i = 0; i < buttonLabels.length; i++) {
+            JButton button = new JButton(buttonLabels[i], buttonIcons[i]);
+            button.setFont(new Font("Arial", Font.PLAIN, 14));
+            button.setHorizontalAlignment(SwingConstants.LEFT);
+            button.setIconTextGap(10);
+            button.setBackground(Color.WHITE);
+            button.setForeground(Color.BLACK);
+            button.setBorder(new CompoundBorder(new LineBorder(Color.WHITE, 2), new EmptyBorder(10, 20, 10, 20)));
+            button.setFocusPainted(false);
+            button.addActionListener(navigationListener);
+            addHoverEffect(button);
+    
+            // Menyesuaikan ukuran tombol secara dinamis berdasarkan teks label terpanjang
+            Dimension buttonSize = button.getPreferredSize();
+            buttonSize = new Dimension(200, buttonSize.height); // Menentukan lebar minimum tombol
+    
+            button.setPreferredSize(buttonSize);
+            button.setMinimumSize(buttonSize);
+            button.setMaximumSize(buttonSize);
+    
+            gbc.gridy = i;
+            navigationPanel.add(button, gbc);
         }
+    
+        return navigationPanel;
+    }
+    
+
+    private JPanel createLogoutPanel() {
+        JPanel logoutPanel = new JPanel(new BorderLayout());
+        logoutPanel.setBackground(Color.WHITE);
+        logoutPanel.setBorder(new EmptyBorder(10, 0, 10, 0));
 
         ImageIcon logoutIcon = new ImageIcon("assets/logout.png");
         Image scaledLogoutImage = logoutIcon.getImage().getScaledInstance(20, 20, Image.SCALE_SMOOTH);
         ImageIcon scaledLogoutIcon = new ImageIcon(scaledLogoutImage);
         JButton logoutButton = new JButton("Logout", scaledLogoutIcon);
         logoutButton.setFont(new Font("Arial", Font.BOLD, 16));
-        logoutButton.setBackground(Color.WHITE); // White button background
-        logoutButton.setForeground(Color.BLACK); // Black text color
-        logoutButton.setBorder(createRoundedBorder()); // Rounded border with white grid
-        logoutButton.setFocusPainted(false); // Remove focus border
-        logoutButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                for (Window window : Window.getWindows()) {
-                    window.dispose();
-                }
-                new LoginPage();
+        logoutButton.setBackground(Color.WHITE);
+        logoutButton.setForeground(Color.BLACK);
+        logoutButton.setBorder(new CompoundBorder(new LineBorder(Color.WHITE, 2), new EmptyBorder(10, 20, 10, 20)));
+        logoutButton.setFocusPainted(false);
+        logoutButton.addActionListener(e -> {
+            for (Window window : Window.getWindows()) {
+                window.dispose();
             }
+            new LoginPage();
         });
-        addHoverEffect(logoutButton); // Add hover effect
+        addHoverEffect(logoutButton);
+        logoutPanel.add(logoutButton, BorderLayout.CENTER);
 
-        JPanel logoutPanel = new JPanel();
-        logoutPanel.setBackground(Color.WHITE);
-        logoutPanel.setPreferredSize(new Dimension(250, 50));
-        logoutPanel.add(logoutButton);
-
-        add(logoPanel);
-        add(navigationPanel);
-        add(logoutPanel);
-    }
-
-    private Border createRoundedBorder() {
-        return new CompoundBorder(
-            new LineBorder(Color.WHITE, 2), // White grid border
-            new EmptyBorder(10, 20, 10, 20) // Padding
-        );
+        return logoutPanel;
     }
 
     private void addHoverEffect(JButton button) {
         button.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
-                button.setBackground(new Color(0, 123, 255)); // Blue background on hover
-                button.setForeground(Color.WHITE); // White text on hover
+                button.setBackground(new Color(0, 123, 255));
+                button.setForeground(Color.WHITE);
             }
 
             @Override
             public void mouseExited(MouseEvent e) {
-                button.setBackground(Color.WHITE); // White background on exit
-                button.setForeground(Color.BLACK); // Black text on exit
+                button.setBackground(Color.WHITE);
+                button.setForeground(Color.BLACK);
             }
         });
-    }
-
-    private static class RoundedBorder implements Border {
-        private int radius;
-
-        RoundedBorder(int radius) {
-            this.radius = radius;
-        }
-
-        public Insets getBorderInsets(Component c) {
-            return new Insets(this.radius + 1, this.radius + 1, this.radius + 1, this.radius + 1);
-        }
-
-        public boolean isBorderOpaque() {
-            return true;
-        }
-
-        public void paintBorder(Component c, Graphics g, int x, int y, int width, int height) {
-            g.setColor(c.getBackground());
-            g.drawRoundRect(x, y, width - 1, height - 1, radius, radius);
-        }
     }
 }
