@@ -14,6 +14,8 @@ public class AddSaleFrame extends JFrame {
     private JTextField dateField, idField, qtyField;
     private JComboBox<String> itemComboBox;
     private JTextField priceField;
+    private JTextField subtotalTextField;
+    private JTextField totalTextField;
 
     public AddSaleFrame() {
         setTitle("Tambah Penjualan");
@@ -81,7 +83,7 @@ public class AddSaleFrame extends JFrame {
         qtyField = new JTextField(5);
         JLabel priceLabel = new JLabel("Harga:");
         priceField = new JTextField(5);
-        priceField.setEnabled(false);
+        // priceField.setEnabled(false);
         
         // Tambahkan event listener untuk itemComboBox
         itemComboBox.addActionListener(e -> {
@@ -135,15 +137,19 @@ public class AddSaleFrame extends JFrame {
         JPanel bottomPanel = new JPanel(new BorderLayout());
 
         JPanel subtotalPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+
         JLabel subtotalLabel = new JLabel("Subtotal:");
-        JTextField subtotalTextField = new JTextField("Rp0", 10);
-        subtotalTextField.setEditable(false);
+        subtotalTextField = new JTextField(10); // Inisialisasi subtotalTextField
+        subtotalTextField.setEditable(false);      
+
         JLabel diskonLabel = new JLabel("Diskon:");
-        JTextField diskonTextField = new JTextField("Rp0", 10);
-        diskonTextField.setEditable(false);
+        JTextField diskonTextField = new JTextField("Rp0", 10); 
+        diskonTextField.setEditable(false); 
+
         JLabel totalLabel = new JLabel("Total:");
-        JTextField totalTextField = new JTextField("Rp0", 10);
-        totalTextField.setEditable(false);
+        totalTextField = new JTextField(10); 
+        totalTextField.setEditable(false); 
+
         subtotalPanel.add(subtotalLabel);
         subtotalPanel.add(subtotalTextField);
         subtotalPanel.add(diskonLabel);
@@ -207,7 +213,8 @@ public class AddSaleFrame extends JFrame {
             String namaProduk = (String) itemComboBox.getSelectedItem();
             int barang = getIdProdukByNamaBarang(namaProduk);
             int jumlah = Integer.parseInt(qtyField.getText());
-            simpanDetailPenjualanKeDatabase(idPenjualan, barang, jumlah);
+            double harga = Double.parseDouble(priceField.getText());            
+            simpanDetailPenjualanKeDatabase(idPenjualan, barang, jumlah, harga);
             loadDataFromDatabase();
         });
         
@@ -247,8 +254,8 @@ public class AddSaleFrame extends JFrame {
 
     private void pindahkanDataKeDetailPenjualan() {
         try (Connection connection = Dbconnect.getConnect()) {
-            String insertQuery = "INSERT INTO detail_penjualan (id_penjualan, id_produk, jumlah, diskon) "
-                               + "SELECT id_penjualan, id_produk, jumlah, diskon FROM temp_detail_penjualan";
+            String insertQuery = "INSERT INTO detail_penjualan (id_penjualan, id_produk, jumlah, total) "
+                               + "SELECT id_penjualan, id_produk, jumlah, total FROM temp_detail_penjualan";
             PreparedStatement preparedStatement = connection.prepareStatement(insertQuery);
             
             int rowsAffected = preparedStatement.executeUpdate();
@@ -320,15 +327,14 @@ public class AddSaleFrame extends JFrame {
         }
     }
     
-
-    private void simpanDetailPenjualanKeDatabase(int id_penjualan, int barang, int jumlah) {
+    private void simpanDetailPenjualanKeDatabase(int id_penjualan, int barang, int jumlah, double harga) {
         try (Connection connection = Dbconnect.getConnect()) {
-            String insertQuery = "INSERT INTO temp_detail_penjualan (id_penjualan, id_produk, jumlah, diskon) VALUES (?, ?, ?, ?)";
+            String insertQuery = "INSERT INTO temp_detail_penjualan (id_penjualan, id_produk, jumlah, total) VALUES (?, ?, ?, ?)";
             PreparedStatement preparedStatement = connection.prepareStatement(insertQuery);
             preparedStatement.setNull(1, java.sql.Types.INTEGER); // id_penjualan diset null
             preparedStatement.setInt(2, barang);
             preparedStatement.setInt(3, jumlah);
-            preparedStatement.setInt(4, 0);
+            preparedStatement.setDouble(4, harga*jumlah);
             
             int rowsAffected = preparedStatement.executeUpdate();
             if (rowsAffected > 0) {
@@ -389,8 +395,28 @@ public class AddSaleFrame extends JFrame {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+
+        // Update subtotal
+        int subtotal = calculateSubtotal();
+        subtotalTextField.setText("Rp" + subtotal);
+        totalTextField.setText("Rp" + subtotal);
     }
     
+    private int calculateSubtotal() {
+        int subtotal = 0;
+        String query = "SELECT SUM(total) AS subtotal FROM temp_detail_penjualan";
+        try (Connection connection = Dbconnect.getConnect();
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(query)) {
+            if (resultSet.next()) {
+                subtotal = resultSet.getInt("subtotal");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return subtotal;
+    }
+
     private int getSalesIdBySalesCode(String salesCode) {
         int salesId = -1;
         String salesQuery = "SELECT id_penjualan FROM penjualan WHERE kode = ?";
