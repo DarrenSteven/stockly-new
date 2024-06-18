@@ -30,6 +30,8 @@ import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 
 class PlaceholderTextField extends JTextField {
     private String placeholder;
@@ -63,31 +65,49 @@ public class StockPage extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(1300, 850);
         setLocationRelativeTo(null);
-
+    
         JPanel mainPanel = new JPanel(new BorderLayout());
         mainPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
-
+    
         Sidebar sidebar = new Sidebar();
         mainPanel.add(sidebar, BorderLayout.WEST);
-
+    
         JPanel contentPanel = new JPanel(new BorderLayout());
         contentPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
-
+    
         JLabel titleLabel = new JLabel("List Produk");
         titleLabel.setFont(new Font("Arial", Font.BOLD, 20));
-
+    
         PlaceholderTextField searchBar = new PlaceholderTextField("Search...");
         searchBar.setFont(new Font("Arial", Font.PLAIN, 14));
         searchBar.setPreferredSize(new Dimension(searchBar.getPreferredSize().width, 40));
         searchBar.setBorder(BorderFactory.createCompoundBorder(
                 searchBar.getBorder(),
                 BorderFactory.createEmptyBorder(5, 5, 5, 5)));
-
+        
+        // Add document listener to the search bar
+        searchBar.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                searchProducts(searchBar.getText());
+            }
+    
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                searchProducts(searchBar.getText());
+            }
+    
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                searchProducts(searchBar.getText());
+            }
+        });
+    
         JPanel titleSearchPanel = new JPanel(new BorderLayout());
         titleSearchPanel.add(titleLabel, BorderLayout.NORTH);
         titleSearchPanel.add(searchBar, BorderLayout.SOUTH);
         contentPanel.add(titleSearchPanel, BorderLayout.NORTH);
-
+    
         String[] columnNames = {"Kode", "Nama Barang", "Jumlah", "Satuan", "Harga Pembelian", "Harga Penjualan"};
         tableModel = new DefaultTableModel(columnNames, 0) {
             @Override
@@ -95,24 +115,24 @@ public class StockPage extends JFrame {
                 return false;  // Make all cells not editable
             }
         };
-
+    
         table = new JTable(tableModel) {
             @Override
             public int getRowHeight(int row) {
                 return 40;
             }
         };
-
+    
         // Set alignment to center for all columns
         DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
         centerRenderer.setHorizontalAlignment(DefaultTableCellRenderer.CENTER);
         for (int i = 0; i < table.getColumnCount(); i++) {
             table.getColumnModel().getColumn(i).setCellRenderer(centerRenderer);
         }
-
+    
         JScrollPane scrollPane = new JScrollPane(table);
         contentPanel.add(scrollPane, BorderLayout.CENTER);
-
+    
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         
         JButton editButton = new JButton("Edit");
@@ -123,7 +143,7 @@ public class StockPage extends JFrame {
             }
         });
         buttonPanel.add(editButton);
-
+    
         JButton deleteButton = new JButton("Hapus");
         deleteButton.addActionListener(new ActionListener() {
             @Override
@@ -132,7 +152,7 @@ public class StockPage extends JFrame {
             }
         });
         buttonPanel.add(deleteButton);
-
+    
         JButton addButton = new JButton("Tambah");
         addButton.addActionListener(new ActionListener() {
             @Override
@@ -141,29 +161,56 @@ public class StockPage extends JFrame {
             }
         });
         buttonPanel.add(addButton);
-
+    
         contentPanel.add(buttonPanel, BorderLayout.SOUTH);
-
+    
         mainPanel.add(contentPanel, BorderLayout.CENTER);
-
+    
         add(mainPanel);
-
+    
         loadDataFromDatabase();
-
+    
         setVisible(true);
     }
+    
+    // Method to filter and search products
+    private void searchProducts(String query) {
+        tableModel.setRowCount(0);  // Clear existing data
+    
+        try (Connection conn = Dbconnect.getConnect();
+             PreparedStatement pstmt = conn.prepareStatement("SELECT kode, nama, stock, satuan, harga_beli, harga_jual FROM list_produk WHERE nama LIKE ?")) {
+            pstmt.setString(1, "%" + query + "%");
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    Object[] row = {
+                        rs.getString("kode"),
+                        rs.getString("nama"),
+                        rs.getInt("stock"),
+                        rs.getString("satuan"),
+                        rs.getDouble("harga_beli"),
+                        rs.getDouble("harga_jual")
+                    };
+                    tableModel.addRow(row);
+                }
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Terjadi kesalahan pada database: " + ex.getMessage());
+        }
+    }
+    
 
     public void refreshTable() {
         tableModel.setRowCount(0);  // Clear existing data
         loadDataFromDatabase();     // Load new data
-    }
+    }    
 
     private void loadDataFromDatabase() {
         productNames = new ArrayList<>();
         try (Connection conn = Dbconnect.getConnect();
              PreparedStatement pstmt = conn.prepareStatement("SELECT kode, nama, stock, satuan, harga_beli, harga_jual FROM list_produk");
              ResultSet rs = pstmt.executeQuery()) {
-
+    
             while (rs.next()) {
                 Object[] row = {
                     rs.getString("kode"),
@@ -180,7 +227,7 @@ public class StockPage extends JFrame {
             ex.printStackTrace();
             JOptionPane.showMessageDialog(this, "Terjadi kesalahan pada database: " + ex.getMessage());
         }
-    }
+    }    
 
     private void showProductSelectionDialog(String action) {
         String[] productArray = productNames.toArray(new String[0]);

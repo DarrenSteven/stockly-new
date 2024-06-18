@@ -106,23 +106,23 @@ public class EditProductFrame extends JFrame {
         String sellingPrice = sellingPriceField.getText();
         String quantity = quantityField.getText();
         String unit = unitField.getText();
-
+    
         String updateQuery = "UPDATE list_produk SET nama = ?, stock = ?, satuan = ?, harga_beli = ?, harga_jual = ? WHERE kode = ?";
-
+    
         try (Connection conn = Dbconnect.getConnect();
              PreparedStatement pstmt = conn.prepareStatement(updateQuery)) {
-
+    
             pstmt.setString(1, name);
             pstmt.setInt(2, Integer.parseInt(quantity));
             pstmt.setString(3, unit);
             pstmt.setDouble(4, Double.parseDouble(purchasePrice));
             pstmt.setDouble(5, Double.parseDouble(sellingPrice));
             pstmt.setString(6, productCode);
-
+    
             int rowsAffected = pstmt.executeUpdate();
             if (rowsAffected > 0) {
                 JOptionPane.showMessageDialog(this, "Produk berhasil diupdate!");
-                stockPage.refreshTable();
+                stockPage.refreshTable();  // Refresh the table in StockPage
                 dispose();
             } else {
                 JOptionPane.showMessageDialog(this, "Gagal mengupdate produk.");
@@ -133,5 +133,5 @@ public class EditProductFrame extends JFrame {
         } catch (NumberFormatException ex) {
             JOptionPane.showMessageDialog(this, "Format data tidak valid: " + ex.getMessage());
         }
-    }
+    }    
 }

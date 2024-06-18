@@ -106,23 +106,23 @@ public class AddProductFrame extends JFrame {
         String sellingPrice = sellingPriceField.getText();
         String quantity = quantityField.getText();
         String unit = unitField.getText();
-
+    
         String insertQuery = "INSERT INTO list_produk (kode, nama, stock, satuan, harga_beli, harga_jual) VALUES (?, ?, ?, ?, ?, ?)";
-
+    
         try (Connection conn = Dbconnect.getConnect();
              PreparedStatement pstmt = conn.prepareStatement(insertQuery)) {
-
+    
             pstmt.setString(1, id);
             pstmt.setString(2, name);
             pstmt.setInt(3, Integer.parseInt(quantity));
             pstmt.setString(4, unit);
             pstmt.setDouble(5, Double.parseDouble(purchasePrice));
             pstmt.setDouble(6, Double.parseDouble(sellingPrice));
-
+    
             int rowsAffected = pstmt.executeUpdate();
             if (rowsAffected > 0) {
                 JOptionPane.showMessageDialog(this, "Produk berhasil ditambahkan!");
-                stockPage.refreshTable();  // Notify StockPage to refresh the table
+                stockPage.refreshTable();  // Refresh the table in StockPage
                 dispose();
             } else {
                 JOptionPane.showMessageDialog(this, "Gagal menambahkan produk.");
@@ -133,5 +133,5 @@ public class AddProductFrame extends JFrame {
         } catch (NumberFormatException ex) {
             JOptionPane.showMessageDialog(this, "Format data tidak valid: " + ex.getMessage());
         }
-    }
+    }    
 }
