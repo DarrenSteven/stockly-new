@@ -75,20 +75,19 @@ public class EditSaleFrame extends JFrame {
 
     private void updateSaleInDatabase() {
         String date = dateField.getText();
-    
+
         String updateQuery = "UPDATE penjualan SET tanggal = ? WHERE kode = ?";
-    
+
         try (Connection conn = Dbconnect.getConnect();
              PreparedStatement pstmt = conn.prepareStatement(updateQuery)) {
-    
+
             pstmt.setString(1, date);
             pstmt.setString(2, saleCode);
-    
+
             int rowsAffected = pstmt.executeUpdate();
             if (rowsAffected > 0) {
                 JOptionPane.showMessageDialog(this, "Penjualan berhasil diupdate!");
-                // Memanggil metode loadData() dari SalesListPage setelah update berhasil
-                salesListPage.loadData();
+                salesListPage.loadData(); // Memanggil metode loadData() dari SalesListPage setelah update berhasil
                 dispose();
             } else {
                 JOptionPane.showMessageDialog(this, "Gagal mengupdate penjualan.");

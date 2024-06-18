@@ -4,8 +4,6 @@ import javax.swing.*;
 import javax.swing.border.*;
 import javax.swing.table.*;
 
-import javafx.event.ActionEvent;
-
 import java.awt.*;
 import java.sql.*;
 import java.util.ArrayList;
@@ -272,24 +270,6 @@ public class AddSaleFrame extends JFrame {
         DefaultTableModel model = (DefaultTableModel) table.getModel();
         String productName = (String) model.getValueAt(row, 1); // Nama barang ada di kolom indeks 1
         return getIdProdukByNamaBarang(productName);
-    }
-
-    private void deleteItemFromPurchase(int productId) {
-        String deleteQuery = "DELETE FROM temp_detail_pembelian WHERE id_produk = ?";
-        try (Connection connection = Dbconnect.getConnect();
-             PreparedStatement preparedStatement = connection.prepareStatement(deleteQuery)) {
-            preparedStatement.setInt(1, productId);
-            int rowsDeleted = preparedStatement.executeUpdate();
-            if (rowsDeleted > 0) {
-                JOptionPane.showMessageDialog(this, "Item berhasil dihapus dari pembelian.", "Success", JOptionPane.INFORMATION_MESSAGE);
-                loadDataFromDatabase(); // Refresh tabel setelah penghapusan berhasil
-            } else {
-                JOptionPane.showMessageDialog(this, "Gagal menghapus item dari pembelian.", "Error", JOptionPane.ERROR_MESSAGE);
-            }
-        } catch (SQLException ex) {
-            ex.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Error saat menghapus item dari pembelian: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-        }
     }
 
     private String generateSaleCode() {

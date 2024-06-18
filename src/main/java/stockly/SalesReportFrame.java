@@ -112,7 +112,7 @@ public class SalesReportFrame extends JFrame {
         titleDatePanel.add(tableTitleLabel, BorderLayout.NORTH);
 
         String currentDate = indonesianDateFormat.format(new Date());
-        dateRangeLabel = new JLabel("Tanggal " + currentDate + " s.d. " + currentDate);
+        dateRangeLabel = new JLabel("Semua Penjualan");
         dateRangeLabel.setHorizontalAlignment(SwingConstants.CENTER);
         titleDatePanel.add(dateRangeLabel, BorderLayout.CENTER);
 
@@ -121,10 +121,8 @@ public class SalesReportFrame extends JFrame {
         JButton generateButton = new JButton("Generate");
         JButton resetButton = new JButton("Reset");
 
-        JButton printButton = new JButton("Print");
         buttonPanel.add(generateButton);
         buttonPanel.add(resetButton);
-        buttonPanel.add(printButton);
 
         JPanel topPanel = new JPanel();
         topPanel.setLayout(new BoxLayout(topPanel, BoxLayout.Y_AXIS));
@@ -229,7 +227,7 @@ public class SalesReportFrame extends JFrame {
         datePickerEnd.getModel().setValue(null);
         searchItemComboBox.setSelectedIndex(0);
         loadDataFromDatabase();
-        dateRangeLabel.setText("Tanggal " + indonesianDateFormat.format(new Date()) + " s.d. " + indonesianDateFormat.format(new Date()));
+        dateRangeLabel.setText("Semua Penjualan");
     }
 
     private void loadDataFromDatabase() {
