@@ -3,6 +3,9 @@ package stockly;
 import javax.swing.*;
 import javax.swing.border.*;
 import javax.swing.table.*;
+
+import javafx.event.ActionEvent;
+
 import java.awt.*;
 import java.sql.*;
 import java.util.ArrayList;
@@ -168,6 +171,22 @@ public class AddSaleFrame extends JFrame {
         actionButtonPanel.add(batalButton);
         actionButtonPanel.add(simpanButton);
 
+        hapusButton.addActionListener(e -> {
+            // Dapatkan baris yang dipilih
+            int selectedRow = table.getSelectedRow();
+            if (selectedRow == -1) {
+                JOptionPane.showMessageDialog(AddSaleFrame.this, "Pilih baris yang ingin dihapus.", "Peringatan", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+        
+            // Dapatkan id_produk dari baris yang dipilih
+            int productId = getProductIdFromTable(selectedRow);
+        
+            // Hapus data dari temp_detail_penjualan
+            deleteItemFromTempDetailPenjualan(productId);
+        });
+        
+
         simpanButton.addActionListener(e -> {
             String tanggal = dateField.getText();
             String kodePenjualan = idField.getText();
@@ -229,6 +248,48 @@ public class AddSaleFrame extends JFrame {
 
         // Load data from database
         loadDataFromDatabase();
+    }
+
+    private void deleteItemFromTempDetailPenjualan(int productId) {
+        String deleteQuery = "DELETE FROM temp_detail_penjualan WHERE id_produk = ?";
+        try (Connection connection = Dbconnect.getConnect();
+             PreparedStatement preparedStatement = connection.prepareStatement(deleteQuery)) {
+            preparedStatement.setInt(1, productId);
+            int rowsDeleted = preparedStatement.executeUpdate();
+            if (rowsDeleted > 0) {
+                JOptionPane.showMessageDialog(this, "Item berhasil dihapus dari penjualan.", "Success", JOptionPane.INFORMATION_MESSAGE);
+                loadDataFromDatabase(); // Refresh tabel setelah penghapusan berhasil
+            } else {
+                JOptionPane.showMessageDialog(this, "Gagal menghapus item dari penjualan.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Error saat menghapus item dari penjualan: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }    
+
+    private int getProductIdFromTable(int row) {
+        DefaultTableModel model = (DefaultTableModel) table.getModel();
+        String productName = (String) model.getValueAt(row, 1); // Nama barang ada di kolom indeks 1
+        return getIdProdukByNamaBarang(productName);
+    }
+
+    private void deleteItemFromPurchase(int productId) {
+        String deleteQuery = "DELETE FROM temp_detail_pembelian WHERE id_produk = ?";
+        try (Connection connection = Dbconnect.getConnect();
+             PreparedStatement preparedStatement = connection.prepareStatement(deleteQuery)) {
+            preparedStatement.setInt(1, productId);
+            int rowsDeleted = preparedStatement.executeUpdate();
+            if (rowsDeleted > 0) {
+                JOptionPane.showMessageDialog(this, "Item berhasil dihapus dari pembelian.", "Success", JOptionPane.INFORMATION_MESSAGE);
+                loadDataFromDatabase(); // Refresh tabel setelah penghapusan berhasil
+            } else {
+                JOptionPane.showMessageDialog(this, "Gagal menghapus item dari pembelian.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Error saat menghapus item dari pembelian: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private String generateSaleCode() {
