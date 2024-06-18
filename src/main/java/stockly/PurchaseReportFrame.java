@@ -135,10 +135,8 @@ public class PurchaseReportFrame extends JFrame {
         JButton generateButton = new JButton("Generate");
         JButton resetButton = new JButton("Reset");
 
-        JButton printButton = new JButton("Print");
         buttonPanel.add(generateButton);
         buttonPanel.add(resetButton);
-        buttonPanel.add(printButton);
 
         JPanel topPanel = new JPanel();
         topPanel.setLayout(new BoxLayout(topPanel, BoxLayout.Y_AXIS));

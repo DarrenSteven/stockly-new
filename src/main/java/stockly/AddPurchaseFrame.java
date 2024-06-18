@@ -291,7 +291,7 @@ public class AddPurchaseFrame extends JFrame {
         String selectedItem = (String) itemComboBox.getSelectedItem();
         int qty = Integer.parseInt(qtyField.getText());
         int price = Integer.parseInt(priceField.getText());
-        int totalPrice = qty * price;
+        int totalPrice = price;
     
         int productId = getProductIdByName(selectedItem);
     
